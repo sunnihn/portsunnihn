@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunni Hanifah | Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;height:100%;background:#0B3E8C}.dc-host{position:fixed;inset:0}.dc-scroll{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto}</style>
+</head>
+<body>
+<div id="v-depot" class="dc-host"></div>
+<div id="v-rec" class="dc-host" style="display:none"></div>
+<script>
+/* Mini runtime: renders the artifact's <x-dc> templates + DCLogic components as plain web code. */
+class DCLogic {
+  constructor(props) { this.props = props || {}; this.state = {}; }
+  setState(p, cb) {
+    Object.assign(this.state, typeof p === 'function' ? p(this.state) : p);
+    if (cb) (this.__cbs || (this.__cbs = [])).push(cb);
+    if (this.__queue) this.__queue(); else if (this.__cbs) { const c = this.__cbs; this.__cbs = null; c.forEach((f) => f()); }
+  }
+}
+(function () {
+  const HOLE = /\{\{\s*([\w$.]+)\s*\}\}/g, WHOLE = /^\s*\{\{\s*([\w$.]+)\s*\}\}\s*$/;
+  const SVG = 'http://www.w3.org/2000/svg';
+  const look = (path, scope) => { let v = scope; for (const k of path.split('.')) { if (v == null) return undefined; v = v[k]; } return v; };
+  const fill = (s, scope) => s.replace(HOLE, (_, p) => { const v = look(p, scope); return v == null || v === false ? '' : String(v); });
+
+  function build(node, scope, view) {
+    if (node.nodeType === 3) return [document.createTextNode(node.nodeValue.includes('{{') ? fill(node.nodeValue, scope) : node.nodeValue)];
+    if (node.nodeType !== 1) return [];
+    const tag = node.localName;
+    if (tag === 'sc-for' || tag === 'sc-if') {
+      const g = node.namespaceURI === SVG ? document.createElementNS(SVG, 'g') : document.createElement('dc-g');
+      if (!(node.namespaceURI === SVG)) g.style.display = 'contents';
+      let items = null;
+      if (tag === 'sc-for') {
+        const m = WHOLE.exec(node.getAttribute('list') || ''); const list = m ? look(m[1], scope) : null;
+        const as = node.getAttribute('as') || 'item';
+        items = Array.isArray(list) ? list.map((it, i) => ({ ...scope, [as]: it, index: i })) : [];
+      } else {
+        const m = WHOLE.exec(node.getAttribute('value') || ''); items = m && look(m[1], scope) ? [scope] : [];
+      }
+      for (const sc of items) for (const c of node.childNodes) for (const n of build(c, sc, view)) g.appendChild(n);
+      return [g];
+    }
+    const el = node.cloneNode(false);
+    for (const a of [...node.attributes]) {
+      const name = a.name, val = a.value;
+      if (name.startsWith('hint-')) { el.removeAttribute(name); continue; }
+      if (/^on[a-z]+$/.test(name) && WHOLE.test(val)) {
+        el.removeAttribute(name);
+        const fn = look(WHOLE.exec(val)[1], scope);
+        if (typeof fn === 'function') { (el.__h || (el.__h = {}))[name.slice(2)] = fn; view.listen(name.slice(2)); }
+        continue;
+      }
+      if (!val.includes('{{')) continue;
+      const w = WHOLE.exec(val);
+      if (w) { const v = look(w[1], scope); if (v === false || v == null) el.removeAttribute(name); else el.setAttribute(name, v === true ? '' : String(v)); }
+      else el.setAttribute(name, fill(val, scope));
+    }
+    for (const c of node.childNodes) for (const n of build(c, scope, view)) el.appendChild(n);
+    return [el];
+  }
+
+  function attrs(el) { const o = {}; for (const a of el.attributes) o[a.name] = a.value; return o; }
+  function patch(live, neu) {
+    const prev = live.__a || attrs(live), next = attrs(neu);
+    for (const k in next) if (prev[k] !== next[k]) live.setAttribute(k, next[k]);
+    for (const k in prev) if (!(k in next)) live.removeAttribute(k);
+    live.__a = next; live.__h = neu.__h;
+    kids(live, neu);
+  }
+  function kids(live, neu) {
+    const nc = [...neu.childNodes];
+    nc.forEach((b, i) => {
+      const a = live.childNodes[i];
+      if (!a) live.appendChild(b);
+      else if (a.nodeType === b.nodeType && (a.nodeType === 3 || a.nodeName === b.nodeName)) {
+        if (a.nodeType === 3) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; } else patch(a, b);
+      } else live.replaceChild(b, a);
+    });
+    while (live.childNodes.length > nc.length) live.removeChild(live.lastChild);
+  }
+
+  const BUBBLE_OFF = { mouseleave: 1, mouseenter: 1 };
+  window.dcMount = function (host, Component, templateHTML, css) {
+    const root = host.attachShadow({ mode: 'open' });
+    const style = document.createElement('style'); style.textContent = '.dc-scroll{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto}\n' + css; root.appendChild(style);
+    const wrap = document.createElement('div'); wrap.className = 'dc-scroll'; root.appendChild(wrap);
+    const tpl = document.createElement('template'); tpl.innerHTML = templateHTML;
+    const comp = new Component(); comp.root = root;
+    const listening = {};
+    const view = {
+      listen(type) {
+        if (listening[type]) return; listening[type] = 1;
+        root.addEventListener(type, (e) => {
+          const path = BUBBLE_OFF[type] ? [e.target] : e.composedPath();
+          let stopped = false;
+          for (const n of path) {
+            if (n === root) break;
+            const h = n.__h && n.__h[type]; if (!h) continue;
+            const ev = new Proxy(e, { get(t, k) {
+              if (k === 'currentTarget') return n;
+              if (k === 'stopPropagation') return () => { stopped = true; };
+              const v = t[k]; return typeof v === 'function' ? v.bind(t) : v; } });
+            h.call(comp, ev); if (stopped) break;
+          }
+        }, !!BUBBLE_OFF[type]);
+      },
+    };
+    let queued = false;
+    const render = () => {
+      queued = false;
+      const tmp = document.createElement('div');
+      for (const c of tpl.content.childNodes) for (const n of build(c, comp.renderVals(), view)) tmp.appendChild(n);
+      kids(wrap, tmp);
+      if (comp.__cbs) { const c = comp.__cbs; comp.__cbs = null; c.forEach((f) => f()); }
+    };
+    comp.__queue = () => { if (!queued) { queued = true; Promise.resolve().then(render); } };
+    root.addEventListener('click', (e) => { // links between views and in-page anchors
+      const a = e.target.closest && e.target.closest('a[href]'); if (!a) return;
+      const h = a.getAttribute('href');
+      if (/(^|\/)Recruiter\.dc\.html$/.test(h)) { e.preventDefault(); window.dcGo('rec'); }
+      else if (/(^|\/)Main\.dc\.html$/.test(h)) { e.preventDefault(); window.dcGo('depot'); }
+      else if (h.startsWith('#') && h.length > 1) { e.preventDefault(); const t = root.getElementById(h.slice(1)); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+    render();
+    if (comp.componentDidMount) comp.componentDidMount();
+    return comp;
+  };
+
+  const views = {};
+  window.dcRegister = (name, host, make) => { views[name] = { host, make, comp: null }; };
+  window.dcGo = function (name) {
+    for (const k in views) views[k].host.style.display = k === name ? 'block' : 'none';
+    const v = views[name]; if (!v.comp) v.comp = v.make(); else if (v.comp.onShow) v.comp.onShow();
+    try { history.replaceState(null, '', name === 'rec' ? '#recruiter' : location.pathname + location.search); } catch (e) { /* file: */ }
+  };
+})();
+
+const DepotC = (function () {
+
+/* =====================================================================
+   SUNNI'S CREATIVE DEPOT
+   1. DATA      : profile, projects, experience, achievements, skills
+   2. LAYOUT    : pile positions and open-container size per viewport
+   3. CRANE     : step-by-step pick / carry / open sequence
+   4. VIEW      : everything renderVals() hands to the template
+   ===================================================================== */
+
+/* ---------- 1. DATA ---------- */
+const EMAIL = 'sunnihanifah6@gmail.com';
+const CV_URL = 'CV_Sunni_Hanifah.pdf'; // CV pdf (the downloadable zip ships it as CV_Sunni_Hanifah.pdf)
+const SOCIALS = [
+  { label: 'GitHub', url: 'https://github.com/sunnihn' },
+  { label: 'LinkedIn', url: 'https://www.linkedin.com/in/sunni-hanifah/' },
+  { label: 'Instagram', url: 'https://www.instagram.com/sunnihn/' },
+];
+
+const SECTIONS = [
+  { id: 'intro', n: '01', a: 'SUNNI', b: '/ INTRO', color: '#E5322D', ink: '#fff', nav: 'Intro', kick: 'THE PERSON BEHIND THE DATA', h: ["Hi, I'm ", 'Sunni Hanifah', ', data & design'] },
+  { id: 'work', n: '02', a: 'SELECTED', b: '/ WORK', color: '#F26A1F', ink: '#fff', nav: 'Work', kick: 'A COLLECTION OF IDEAS AND EXECUTION', h: ['Things I\'ve ', 'built', '.'] },
+  { id: 'about', n: '03', a: 'ABOUT', b: '/ ME', color: '#1D55D8', ink: '#fff', nav: 'About', kick: 'BACKGROUND & PERSPECTIVE', h: ['About ', 'Me', ''] },
+  { id: 'exp', n: '04', a: 'EXPERI', b: '/ ENCE', color: '#F6B919', ink: '#0B1634', nav: 'Experience', kick: 'WHERE IDEAS MEET EXECUTION', h: ['What I\'ve ', 'done', '.'] },
+  { id: 'ach', n: '05', a: 'ACHIEVE', b: '/ MENTS', color: '#97A1AD', ink: '#0B1634', nav: 'Achievements', kick: 'MILESTONES & RECOGNITION', h: ['Proof through ', 'action', '.'] },
+  { id: 'tool', n: '06', a: 'TOOL', b: '/ KIT', color: '#E5322D', ink: '#fff', nav: 'Toolkit', kick: 'HOW I THINK & BUILD', h: ['Inside my ', 'toolkit', '.'] },
+  { id: 'hello', n: '07', a: 'SAY', b: '/ HELLO', color: '#2546B8', ink: '#fff', nav: 'Contact', kick: "LET'S CREATE SOMETHING MEANINGFUL", h: ['Have an ', 'idea', '?'] },
+];
+const NAV_ITEMS = ['work', 'about', 'exp', 'ach', 'hello'];
+
+const PILLARS = [
+  { n: '01', t: 'DATA INTELLIGENCE', d: 'Statistical modeling, NLP and dashboards that find patterns in messy data.' },
+  { n: '02', t: 'BUSINESS STRATEGY', d: 'Market research, partnerships and process mapping that turn evidence into decisions.' },
+  { n: '03', t: 'CREATIVE TECHNOLOGY', d: 'Infographics, interfaces and web apps that make complex information easy to read.' },
+];
+const ABOUT_PILLARS = [
+  { t: 'DATA', d: 'Finding patterns and evidence.' },
+  { t: 'BUSINESS', d: 'Translating evidence into strategic decisions.' },
+  { t: 'DESIGN', d: 'Making complex information understandable.' },
+];
+const TOOLS_USED = ['SPSS', 'Minitab', 'R', 'Python', 'Power BI', 'Tableau', 'Figma', 'Canva'];
+const PHRASES = ['Business & Data Analyst', 'Business Statistics student @ ITS', 'aiming 4 a Global Career in Formula 1', 'aiming 4 a Global Career in FAANG'];
+const RECRUITER_ORDER = ['intro', 'about', 'work', 'exp', 'ach', 'tool', 'hello'];
+
+const PROJECT_FILTERS = [['all', 'ALL'], ['data', 'DATA ANALYTICS'], ['business', 'BUSINESS'], ['research', 'RESEARCH'], ['dashboard', 'DASHBOARD'], ['creative', 'CREATIVE']];
+
+/* detail = { overview, approach, output } as [label, text] pairs; only facts from the CV or the live sites */
+const PROJECTS = [
+  { id: 'pefindo', img: 'pefindo.png', n: '01', kind: 'LIVE DASHBOARD', title: 'ANALYZE PEFINDO-25', cat: 'Financial Analytics', tags: ['data', 'dashboard', 'business'], color: '#E5322D',
+    role: 'Team project (MIP Kelompok 1)', tools: ['Python', 'Financial analysis', 'Data visualization', 'Dashboard development'],
+    desc: 'Financial dashboard for 25 listed companies, 2020–2023: data quality, returns, valuation, K-Means clusters, macro.',
+    url: 'https://sunnihn.github.io/Analyze-PEFINDO-25/',
+    detail: {
+      overview: [['Objective', 'Compare 25 issuers on integrity, market performance, profitability, financial pressure, valuation and risk versus return.']],
+      approach: [['Methods', 'K-Means (two clusters), z-score profiling, median comparisons, return-to-risk ratios, log-scale price index.']],
+      output: [['Deliverable', 'Ten-tab interactive dashboard with cluster, data status, year and issuer filters.'], ['Status', 'Live. Forecast Lab (price forecast, ECM) is still in progress.']] } },
+  { id: 'peta', img: 'petaarus.png', n: '02', kind: 'DATA STORY', title: 'PETA ARUS PERPINDAHAN PENDIDIKAN INDONESIA', cat: 'Geographic Data Storytelling', tags: ['data', 'dashboard', 'creative'], color: '#F26A1F',
+    role: 'Project author', tools: [],
+    desc: 'Interactive geographic story about education mobility across Indonesia.',
+    url: 'https://sunnihn.github.io/Peta-Arus-Perpindahan-Pendidikan-Indonesia/',
+    detail: {
+      overview: [['Topic', 'Education mobility across Indonesia.']],
+      approach: [['Approach', 'Geographic data storytelling and visualization.']],
+      output: [['Deliverable', 'Live interactive site. Data and findings are on the site.']] } },
+  { id: 'absa', n: '03', kind: 'THESIS', title: 'E-COMMERCE ASPECT-BASED SENTIMENT ANALYSIS', cat: 'NLP & Machine Learning', tags: ['data', 'dashboard', 'research'], color: '#1D55D8',
+    role: 'Lead Data & Product Analyst', tools: ['Python', 'IndoBERT', 'Conv1D', 'BiLSTM', 'NLP', 'SQL', 'Streamlit'],
+    desc: 'Undergraduate thesis: Tokopedia and Shopee electronics reviews, hybrid deep learning, Streamlit dashboard.', url: '',
+    detail: {
+      overview: [['Objective', 'Aspect-based sentiment dashboard for electronic product performance.']],
+      approach: [['Methods', 'Hybrid deep learning: IndoBERT, Conv1D, BiLSTM.']],
+      output: [['Deliverable', 'Streamlit dashboard.'], ['Type', 'Undergraduate thesis.']] } },
+  { id: 'tourism', n: '04', kind: 'RESEARCH', title: 'EAST JAVA TOURISM SENTIMENT & TOPIC MODELING', cat: 'Research & Consumer Insights', tags: ['research', 'data'], color: '#F6B919',
+    role: 'Lead Data & Market IT', tools: ['Python', 'BiLSTM', 'LDA', 'NLP', 'SQL', 'Tableau', 'Power BI'],
+    desc: 'Tourist reviews across East Java: sentiment patterns and experience topics.', url: '',
+    detail: {
+      overview: [['Objective', 'Sentiment scores and consumer experience topics for regional tourism development.']],
+      approach: [['Methods', 'BiLSTM sentiment, LDA topic modeling.']],
+      output: [['Deliverable', 'Findings visualized in Tableau / Power BI.']] } },
+  { id: 'sambar', img: 'sambarv3.png', n: '05', kind: 'PROTOTYPE', title: 'SAMBAR GATEWAY ANALYZER', cat: 'Engineering Analytics', tags: ['dashboard', 'data'], color: '#97A1AD',
+    role: 'Product & Telemetry Analyst', tools: ['React', 'Tailwind CSS', 'Python', 'Streamlit', 'EIS'],
+    desc: 'Used EV battery triage bench with telemetry dashboard: health, impedance, thermal.',
+    url: 'https://sunnihn.github.io/sambarv3/',
+    detail: {
+      overview: [['Objective', 'Triage used EV batteries into repair, second-life storage or smelter extraction.']],
+      approach: [['Methods', 'State of health, internal impedance, EIS frequency response, thermal diagnostics.']],
+      output: [['Deliverable', 'Interactive diagnostic dashboard, student-built prototype.']] } },
+  { id: 'bokem', img: 'WEBRBOKEM.png', n: '06', kind: 'R SHINY APP', title: 'BOKEM CALCULATOR', cat: 'Statistical App', tags: ['dashboard', 'data'], color: '#E5322D',
+    role: 'R Shiny Developer & Analyst', tools: ['R', 'R Shiny', 'ggplot2', 'tidyverse', 'SQL', 'KoboToolbox'],
+    desc: 'Interactive R Shiny app for automated statistical analysis and live charts.',
+    url: 'https://sunnidashboard.shinyapps.io/Checkbokemkamu/',
+    detail: {
+      overview: [['Objective', 'Automate statistical analysis and visualize results in real time.']],
+      approach: [['Approach', 'R Shiny front end with tidyverse and ggplot2.']],
+      output: [['Deliverable', 'Live R Shiny web app.']] } },
+  { id: 'tegak', img: 'tegakv2.jpeg', n: '07', kind: 'WEB TOOL', title: 'TEGAK', cat: 'Posture Analysis', tags: ['data', 'dashboard', 'creative'], color: '#2546B8',
+    role: 'Project author', tools: ['MediaPipe Pose', 'WebRTC'],
+    desc: 'Posture analysis from images, video or live camera. Rates ergonomic risk with RULA/REBA.',
+    url: 'https://sunnihn.github.io/tegak/',
+    detail: {
+      overview: [['Objective', 'Measure neck flexion, shoulder alignment and arm abduction, then classify risk.']],
+      approach: [['Methods', 'MediaPipe Pose landmarks, atan2 angle calculations, RULA/REBA standards.']],
+      output: [['Deliverable', 'Live web tool: upload an image or video, or use the camera.']] } },
+  { id: 'love', img: 'weblovecalcu.png', n: '08', kind: 'SHINY APP', title: 'LOVE CALCULATOR', cat: 'Fun Interactive App', tags: ['creative', 'dashboard'], color: '#F26A1F',
+    role: 'Project author', tools: ['Shiny'],
+    desc: 'A playful interactive Shiny app: test your love with someone.',
+    url: 'https://apsslucusunni.shinyapps.io/TestingurLovewithu/',
+    detail: {
+      overview: [['Topic', 'A light, playful interactive app.']],
+      output: [['Deliverable', 'Live Shiny app.']] } },
+  { id: 'books', img: 'webbooksaniest.png', n: '09', kind: 'PROTOTYPE', title: 'BOOKSTORE PROTOTYPE', cat: 'Web Design', tags: ['creative'], color: '#1D55D8',
+    role: 'Project author', tools: ['HTML', 'CSS'],
+    desc: 'Book Saniest: online bookstore prototype with categories, discounts, login, cart and newsletter.',
+    url: 'https://sunnihn.github.io/booksaniest/index.html',
+    detail: {
+      overview: [['Topic', 'Online bookstore with Fiction, Romance and Motivation categories.']],
+      output: [['Deliverable', 'Live multi-page website prototype.']] } },
+  { id: 'employment', n: '10', kind: 'DASHBOARD', title: 'EMPLOYMENT IN INDONESIA', cat: 'Labour Data Dashboard', tags: ['dashboard', 'data', 'research'], color: '#F6B919',
+    role: 'Data Analyst', tools: [],
+    desc: 'Dashboard on employment in Indonesia.',
+    url: 'https://onedrive.live.com/personal/fbdc9b6451af85d4/_layouts/15/Doc.aspx?sourcedoc=%7Ba4c2b48f-ab11-4108-9e7e-e4d3c84f39a3%7D&action=default&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mYmRjOWI2NDUxYWY4NWQ0L0VZLTB3cVFScXdoQm5uN2swOGhQT2FNQndnYTh4cjFaM0dlbUpIS3J4aGlPX1E_ZT1VZnlzSTM&slrid=920a51a2-60a6-2000-685d-6eb62d50bbc9&originalPath=aHR0cHM6Ly9vbmVkcml2ZS5saXZlLmNvbS86eDovZy9wZXJzb25hbC9mYmRjOWI2NDUxYWY4NWQ0L0lRQ1B0TUtrRWFzSVFaNS01TlBJVHptakFjSUd2TWE5V2R4bnBpUnlxOFlZanYwP3J0aW1lPU45dEIwTnBIMzBnJnJlZGVlbT1hSFIwY0hNNkx5OHhaSEoyTG0xekwzZ3ZZeTltWW1Sak9XSTJORFV4WVdZNE5XUTBMMFZaTFRCM2NWRlNjWGRvUW01dU4yc3dPR2hRVDJGTlFuZG5ZVGg0Y2pGYU0wZGxiVXBJUzNKNGFHbFBYMUVfWlQxVlpubHpTVE0&CID=cc0d3451-8cb3-4309-99f1-982c5460715a&_SRM=0:G:109',
+    detail: {
+      overview: [['Topic', 'Employment in Indonesia.']],
+      output: [['Deliverable', 'Dashboard hosted on OneDrive (may ask for a Microsoft sign-in).']] } },
+  { id: 'macro', n: '11', kind: 'RESEARCH', title: 'DEMOGRAPHIC & MACROECONOMIC RESEARCH', cat: 'Quantitative Research', tags: ['research', 'data'], color: '#97A1AD',
+    role: 'Quantitative Data Analyst', tools: ['R', 'Panel regression', 'AR-DL', 'Koyck', 'Almon', 'Minitab', 'SPSS', 'Excel', 'Power BI', 'Looker Studio'],
+    desc: 'Nationwide demographic and regional GDP analysis with panel regression and Chow tests.', url: '',
+    detail: {
+      overview: [['Objective', 'Macro-level consumer and economic insights.']],
+      approach: [['Methods', 'Panel regression (AR-DL, Koyck, Almon), Chow tests.']],
+      output: [['Deliverable', 'Analysis and visual reports.']] } },
+  { id: 'sna', n: '12', kind: 'INTERNATIONAL', title: 'CROSS-CULTURAL NETWORK ANALYSIS', cat: 'International Research', tags: ['research', 'data'], color: '#E5322D',
+    role: 'Research Exchange Analyst', tools: ['R', 'igraph', 'Social Network Analysis'],
+    desc: 'Network analysis of cross-cultural interaction at Universiti Sains Malaysia.', url: '',
+    detail: {
+      overview: [['Context', 'USM academic exchange, August 2026, 10-day program.']],
+      approach: [['Methods', 'Social network analysis in R with igraph: density, communities, communication networks.']],
+      output: [['Deliverable', 'Network analysis of interaction datasets.']] } },
+  { id: 'biz', n: '13', kind: 'BUSINESS', title: 'BUSINESS & MARKET RESEARCH', cat: 'Market Research', tags: ['business', 'creative', 'research'], color: '#2546B8',
+    role: 'Marketing Leader & Business Analyst', tools: ['Google Forms', 'Google Docs', 'Notion', 'Canva', 'Figma', 'Python', 'SQL'],
+    desc: 'Process mapping, target-market analysis and brand strategy for Colorex, Nutricost, Ecdorh, Shine and Manutor.', url: '',
+    detail: {
+      overview: [['Ventures', 'Colorex, Nutricost, Ecdorh, Shine, Manutor.']],
+      approach: [['Methods', 'End-to-end business process mapping, target-market requirement analysis.']],
+      output: [['Deliverable', 'Market research and strategy outputs.']] } },
+  { id: 'more', img: 'etc.png', n: '+', kind: 'ARCHIVE', title: 'MORE PROJECTS', cat: 'All additional projects', tags: ['data', 'business', 'research', 'dashboard', 'creative'], color: '#F26A1F',
+    role: '', tools: [],
+    desc: 'Every extra project, report and file, in one Google Drive folder.',
+    url: 'https://drive.google.com/drive/u/1/folders/13YbmHbd9k-hqUJFSY7D_7zxX3dHXXd4b',
+    detail: { overview: [['Folder', 'Additional projects on Google Drive.']] } },
+];
+
+const EXPERIENCE = {
+  pro: [
+    { id: 'harisenin', org: 'Harisenin.com', role: 'Operation Success Talent Intern', period: 'Jan 2026 – Apr 2026', where: 'South Jakarta, Indonesia (Remote / WFH)',
+      points: ['Participant onboarding', 'Operational workflows and query resolution', 'Tracked performance metrics', 'Standardized SOPs for daily cross-team handovers'], skills: ['Operations', 'SOP design', 'Metrics tracking'] },
+    { id: 'mihoyo', org: 'miHoYo', role: 'Digital Marketing Intern', period: 'Jun 2025 – Jul 2025', where: 'Remote / WFH',
+      points: ['Digital marketing strategy', 'Creative promotional campaigns for a global gaming audience', 'Campaign performance and audience engagement analysis'], skills: ['Digital marketing', 'Campaign analysis'] },
+    { id: 'colorex', org: 'Colorex ID', role: 'Marketing & Internal Coordinator', period: 'Mar 2025 – Sep 2026', where: 'Indonesia (Hybrid / WFO)',
+      points: ['Multi-channel TikTok and Instagram campaigns aimed at ages 18–35', 'AI-driven personal colour analysis platform', 'Primary liaison for faculty progress reporting', 'Skin-tone dataset analysis to personalize recommendation logic'], skills: ['Marketing', 'Coordination', 'Data analysis'] },
+    { id: 'ta', org: 'Department of Business Statistics, ITS', role: 'Departmental Teaching Assistant', period: 'Sep 2024 – Jun 2026', where: 'Surabaya, East Java (On-site)',
+      points: ['Four courses over four semesters: Computational Statistics, Web Programming, Database Management Systems, Programming Algorithms', 'Mentored students in Python, R, SQL and statistical computing'], skills: ['Teaching', 'Python', 'R', 'SQL'] },
+  ],
+  org: [
+    { id: 'hde', org: 'UKM Heroes Day Esports ITS', role: 'Head of Sponsorship Subdivision', period: 'Jan 2025 – Nov 2025', where: 'Surabaya, Indonesia',
+      points: ['Led external funding strategy and sponsorship proposal design', 'Pitch development for campus esports tournaments', 'Negotiated partnership terms and tracked sponsor deliverables'], skills: ['Sponsorship', 'Negotiation', 'Leadership'] },
+    { id: 'gdgoc', org: 'Google Developer Groups On Campus ITS', role: 'Business Development & Sponsorship Staff', period: 'Nov 2024 – Nov 2025', where: 'Surabaya, Indonesia',
+      points: ['Secured financial backing and industry partnerships for tech programs', 'Designed custom sponsor branding packages', 'Analyzed market trends to refine outreach proposals'], skills: ['Business development', 'Partnerships'] },
+    { id: 'himadata', org: 'HIMADATA ITS', role: 'Head & Staff of Academic Achievement Division / Competition Mentor', period: 'Dec 2024 – Dec 2025', where: 'Surabaya, Indonesia',
+      points: ['Maintained a database of national statistics, analytics and business case competitions', 'Mentored 16+ teams in business plan formulation, case study analysis and poster design'], skills: ['Mentorship', 'Case analysis'] },
+    { id: 'hipmi', org: 'HIPMI PT ITS', role: 'Staff of Startup & MSME Development', period: 'Oct 2024 – Dec 2025', where: 'Surabaya, Indonesia',
+      points: ['Identified high-potential student startups', 'Guidance on business fundamentals and digital transformation', 'Organized workshops for the campus entrepreneurial ecosystem'], skills: ['Startup support', 'Workshops'] },
+    { id: 'tdc', org: 'Technopreneurship Development Center ITS', role: 'Member & Entrepreneur', period: 'Sep 2024 – Nov 2025', where: 'Surabaya, Indonesia',
+      points: ['Completed intensive business incubator training', 'Launched an active Food & Beverage enterprise', 'Managed product development, market strategy and operational risk'], skills: ['Entrepreneurship', 'Product strategy'] },
+    { id: 'peta-scholar', org: 'Peta Scholar', role: 'Research & Development Staff', period: 'May 2025 – Dec 2025', where: 'Malang, East Java (Remote)',
+      points: ['Researched domestic and international scholarship programs', 'Built centralized eligibility databases', 'Analyzed applicant success trends and wrote practical guides'], skills: ['Research', 'Databases', 'Writing'] },
+  ],
+};
+
+/* cat: competition | academic | leadership | speaking | funding */
+const ACH_FEATURED = [
+  { badge: 'TOP 15 NATIONAL SEMIFINALIST', title: 'Statistics Infographic Competition', event: 'SIC / Satria Data 2025', note: 'Team Leader. Led a cross-functional team in data analysis and visual storytelling.', cat: ['competition', 'leadership'] },
+  { badge: '3RD WINNER', title: 'Hasanuddin Infographic Competition', event: '2026', note: '', cat: ['competition'] },
+  { badge: 'INVITED KEYNOTE SPEAKER', title: 'How to Make Business Model Canvas', event: 'TDC ITS, 2026', note: '', cat: ['speaking'] },
+  { badge: 'INVITED KEYNOTE SPEAKER', title: 'How to Craft an Actionable Business Plan', event: 'Geomatika ITS Webinar, 2026', note: '', cat: ['speaking'] },
+  { badge: 'GRANT AWARDEE', title: 'HETI Student Youngership ITS', event: 'Growth Stage Funding, 2025', note: '', cat: ['funding'] },
+  { badge: '1ST BEST DESIGN POSTER', title: 'Demo Day CDP Fair', event: '2025', note: '', cat: ['competition'] },
+];
+const ACH_MORE = [
+  { title: 'Finalist, GDSC Hackfest Indonesia', event: '2024', cat: ['competition'] },
+  { title: '2nd Winner, Business Plan Competition KWU HIMADATA ITS', event: '2024 · CEO', cat: ['competition', 'leadership'] },
+  { title: 'Finalist, TSF Business Plan Competition', event: '2024 · Chief Design Officer', cat: ['competition'] },
+  { title: '3rd Winner, Business Model Competition, Dies Natalis 42 Kopma ITS', event: '2024 · CEO', cat: ['competition', 'leadership'] },
+  { title: 'Semifinalist, BPC IYREFF 2024', event: 'Society of Renewable Energy, ITB', cat: ['competition'] },
+  { title: 'Rank 13, National Business Plan Competition', event: '2024 · CEO', cat: ['competition', 'leadership'] },
+  { title: 'ITS Internal Team Leader, Satria Data SIC 2024', event: 'Appointed as the youngest team leader', cat: ['competition', 'leadership'] },
+  { title: 'Rank 14, VISIBLE 2023', event: '2023 · CEO', cat: ['competition', 'leadership'] },
+  { title: 'Delegated Short Program, USM Malaysia', event: 'August 2026', cat: ['academic'] },
+  { title: 'Best Outstanding Student Award, Bimbel Plasma', event: '', cat: ['academic'] },
+];
+const ACH_FILTERS = [['all', 'ALL'], ['competition', 'COMPETITION'], ['academic', 'ACADEMIC'], ['leadership', 'LEADERSHIP'], ['speaking', 'SPEAKING'], ['funding', 'FUNDING']];
+
+const SKILL_CATS = [
+  { id: 'data', label: 'DATA & STATISTICS', skills: ['Python', 'R', 'SQL', 'SPSS', 'Minitab', 'Excel', 'Statistical modeling', 'Econometrics', 'Multivariate analysis'],
+    keys: ['Python', 'R', 'SQL', 'SPSS', 'Minitab', 'Excel', 'Panel regression'],
+    apply: 'Statistical modeling, panel regression and time series work in research and course projects.', exp: 'Teaching Assistant for Computational Statistics, Database Management Systems and Programming Algorithms (2024–2026).' },
+  { id: 'ml', label: 'MACHINE LEARNING & AI', skills: ['IndoBERT', 'CNN', 'BiLSTM', 'NLP', 'LDA', 'Applied Machine Learning', 'Deep Learning'],
+    keys: ['IndoBERT', 'Conv1D', 'BiLSTM', 'NLP', 'LDA'],
+    apply: 'Sentiment analysis and topic modeling on Indonesian-language review data.', exp: 'Undergraduate thesis and the East Java tourism research project.' },
+  { id: 'viz', label: 'DATA VISUALIZATION', skills: ['Power BI', 'Tableau', 'Looker Studio', 'ggplot2', 'Streamlit', 'R Shiny', 'Data storytelling', 'Infographic design'],
+    keys: ['Power BI', 'Tableau', 'Looker Studio', 'ggplot2', 'Streamlit', 'R Shiny', 'Data visualization'],
+    apply: 'Dashboards, infographics and data storytelling for competitions and class projects.', exp: 'Top 15 Satria Data 2025 as team leader; 3rd place, Hasanuddin Infographic Competition 2026.' },
+  { id: 'biz', label: 'BUSINESS & STRATEGY', skills: ['Market research', 'Consumer insights', 'Business development', 'Business process optimization', 'Product strategy', 'Sponsorship', 'Strategic partnerships', 'Digital marketing'],
+    keys: ['Google Forms', 'Google Docs', 'Notion'],
+    apply: 'Market research, partnership outreach and business process mapping.', exp: 'Colorex ID, miHoYo, and sponsorship roles at HDE ITS, GDGoC ITS and HIPMI PT ITS.' },
+  { id: 'design', label: 'DESIGN & DEVELOPMENT', skills: ['Figma', 'Canva', 'UI/UX', 'HTML', 'CSS', 'PHP', 'React', 'Tailwind CSS'],
+    keys: ['Figma', 'Canva', 'React', 'Tailwind CSS', 'Dashboard development'],
+    apply: 'Interface mockups, posters and web or dashboard builds.', exp: '1st Best Design Poster at Demo Day CDP Fair 2025; Web Programming teaching assistant.' },
+  { id: 'soft', label: 'SOFT SKILLS', skills: ['Analytical thinking', 'Communication', 'Public speaking', 'Leadership', 'Mentorship', 'Problem solving', 'Cross-functional collaboration', 'Project management'],
+    keys: [],
+    apply: 'Presenting, mentoring and leading small teams.', exp: 'Keynotes at TDC ITS and Geomatika ITS; mentored 16+ competition teams at HIMADATA ITS.' },
+];
+const PROCESS = [
+  { n: '01', t: 'UNDERSTAND', d: 'Understand the problem, stakeholders, and objectives.' },
+  { n: '02', t: 'RESEARCH', d: 'Collect evidence, explore data, and investigate patterns.' },
+  { n: '03', t: 'ANALYZE', d: 'Apply appropriate statistical, analytical, or business methods.' },
+  { n: '04', t: 'DESIGN', d: 'Transform findings into understandable visual outputs.' },
+  { n: '05', t: 'DELIVER', d: 'Build, communicate, and improve the final solution.' },
+];
+const CERTS = [
+  { t: 'Google Data Analytics Professional Certificate', d: 'Google · 2025' },
+  { t: 'Applied Data Science with Python & SQL', d: 'AWS · 2025' },
+  { t: 'British Council Aptis / CEFR English Test', d: 'Score 364, C1 equivalent · March 2026' },
+  { t: 'Entrepreneurship & Business Acceleration Program', d: 'ITS Entrepreneurship Camp / Maxy Academy · November 2025' },
+  { t: 'Certificate of Business Incubation & Entrepreneurship', d: 'TDC ITS · 2025' },
+];
+
+/* ---------- 2. LAYOUT ---------- */
+const IDX = {}; SECTIONS.forEach((s, i) => { IDX[s.id] = i; });
+// Pile spec: fx = centre as share of width, fy = px below the pile top, w = base width, ry/rz = tilt, z = stacking
+const PILE_DESKTOP = [
+  { fx: .27, fy: 112, w: 270, ry: 17, rz: -4, z: 5 },  // intro
+  { fx: .16, fy: 20, w: 250, ry: 14, rz: 3, z: 2 },    // work
+  { fx: .62, fy: 8, w: 290, ry: -12, rz: -2, z: 2 },   // about
+  { fx: .38, fy: 0, w: 240, ry: 12, rz: 5, z: 1 },     // exp
+  { fx: .85, fy: 26, w: 230, ry: -18, rz: 4, z: 1 },   // ach
+  { fx: .50, fy: 126, w: 250, ry: -9, rz: -5, z: 6 },  // tool
+  { fx: .73, fy: 106, w: 260, ry: -15, rz: 3, z: 5 },  // hello
+];
+const PILE_MOBILE = [
+  { fx: .29, fy: 0, ry: 14, rz: -3, z: 2 }, { fx: .71, fy: 4, ry: -14, rz: 3, z: 1 },
+  { fx: .30, fy: 72, ry: 12, rz: 3, z: 3 }, { fx: .70, fy: 70, ry: -12, rz: -3, z: 2 },
+  { fx: .29, fy: 142, ry: 14, rz: -2, z: 4 }, { fx: .71, fy: 146, ry: -13, rz: 4, z: 3 },
+  { fx: .50, fy: 214, ry: 8, rz: -3, z: 5 },
+];
+const RAIL_TO_HEAD = 90; // container top = 90 + rod length
+
+function layout(W) {
+  const m = W < 720;
+  const ow = Math.min(W - (m ? 16 : 48), 980);
+  const oh = m ? 640 : 520;
+  const openTop = 126;
+  const pileTop = openTop + oh + 28;
+  const f = m ? 1 : Math.min(1, Math.max(.78, W / 1440));
+  const rest = (m ? PILE_MOBILE : PILE_DESKTOP).map((s) => {
+    const w = m ? 168 : Math.round(s.w * f);
+    return { x: s.fx * W, y: pileTop + s.fy, w, h: Math.round(w * .43), d: Math.round(w * .4), ry: s.ry, rz: s.rz, z: s.z };
+  });
+  return { m, navH: m ? 116 : 72, ow, oh, openTop, pileTop, rest, stageH: pileTop + (m ? 300 : 270) };
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+class Component extends DCLogic {
+  onShow() { try { const t = sessionStorage.getItem('depot-theme'); if (t && t !== this.state.theme) this.setState({ theme: t }); } catch (e) { /* ignore */ } }
+  constructor(...args) {
+    super(...args);
+    this.state = {
+      W: 1440, loading: true, mode: 'experience', theme: 'day',
+      // crane + container choreography
+      cx: 720, rod: 20, fing: 'open', held: null, straight: false, big: false, doors: false, content: false,
+      // UI selections
+      filter: 'all', detailId: null, detailTab: 'overview', expTab: 'pro', expOpen: 'harisenin',
+      achFilter: 'all', skillCat: 'data', pillar: 0, tp: 0, tc: 0, td: false,
+    };
+    this.busy = false; this.next = null; this.dead = false; this.hold = 0; this.drag = null;
+  }
+
+  /* ---------- lifecycle ---------- */
+  componentDidMount() {
+    try {
+      const t = sessionStorage.getItem('depot-theme');
+      if (t) this.setState({ theme: t });
+    } catch (e) { /* storage unavailable */ }
+    const el = this.root.getElementById('depot-root');
+    if (el && window.ResizeObserver) { this.ro = new ResizeObserver(() => this.measure()); this.ro.observe(el); }
+    this.measure();
+    this.t1 = setTimeout(() => this.finishLoad(), 1700);
+    this.tt = setInterval(() => this.tick(), 65);
+    this.onMove = (e) => { const c = this.root.getElementById('depot-cursor'); if (c) { c.style.left = e.clientX + 'px'; c.style.top = e.clientY + 'px'; } };
+    this.onOver = (e) => { const c = this.root.getElementById('depot-cursor'); if (c && e.target.closest) c.classList.toggle('h', !!e.target.closest('a,button')); };
+    this.root.addEventListener('mousemove', this.onMove); this.root.addEventListener('mouseover', this.onOver);
+    this.onClick = (e) => { if (e.target.closest && e.target.closest('a,button,input,.cb,.host,.modal,.sw')) return; this.puff(e.clientX, e.clientY); };
+    this.root.addEventListener('click', this.onClick);
+  }
+  puff(x, y) { // white cloud burst where the background is clicked
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const n = 6 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div'), s = 36 + Math.random() * 44;
+      d.style.cssText = 'position:fixed;pointer-events:none;z-index:9999;border-radius:50%;width:' + s + 'px;height:' + s + 'px;left:' + (x - s / 2 + (Math.random() - .5) * 50) + 'px;top:' + (y - s / 2 + (Math.random() - .5) * 28) + 'px;background:radial-gradient(circle at 35% 35%,#fff,rgba(255,255,255,.85) 55%,rgba(255,255,255,0) 72%);filter:blur(3px) drop-shadow(0 4px 10px rgba(90,130,190,.35))';
+      document.body.appendChild(d);
+      const dx = (Math.random() - .5) * 90, dy = -40 - Math.random() * 70;
+      const a = d.animate([{ transform: 'translate(0,0) scale(.2)', opacity: 0 }, { opacity: .95, offset: .25 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(1.5)', opacity: 0 }], { duration: 1500 + Math.random() * 900, easing: 'cubic-bezier(.2,.7,.3,1)', delay: i * 45, fill: 'both' });
+      a.onfinish = () => d.remove();
+    }
+  }
+  componentWillUnmount() { this.root.removeEventListener('click', this.onClick); this.dead = true; if (this.ro) this.ro.disconnect(); clearTimeout(this.t1); clearInterval(this.tt); this.root.removeEventListener('mousemove', this.onMove); this.root.removeEventListener('mouseover', this.onOver); }
+  tick() { // typewriter: type, hold, delete, next phrase
+    const s = this.state;
+    if (this.dead || this.reduced() || s.loading) return;
+    if (!(s.mode === 'recruiter' || (s.held === 'intro' && s.content))) return;
+    if (this.hold > 0) { this.hold--; return; }
+    const full = PHRASES[s.tp];
+    if (!s.td) { if (s.tc < full.length) this.setState({ tc: s.tc + 1 }); else { this.hold = 26; this.setState({ td: true }); } }
+    else if (s.tc > 0) this.setState({ tc: s.tc - 1 });
+    else this.setState({ td: false, tp: (s.tp + 1) % PHRASES.length });
+  }
+  measure() {
+    const el = this.root.getElementById('depot-root'); if (!el) return;
+    const W = Math.round(el.getBoundingClientRect().width) || 1440;
+    if (W === this.state.W) return;
+    this.setState(this.busy ? { W } : { W, cx: W / 2 });
+  }
+  finishLoad() {
+    if (this.dead || !this.state.loading) return;
+    this.setState({ loading: false, cx: this.state.W / 2 });
+    setTimeout(() => { if (this.state.mode === 'experience') this.go('intro'); }, 500);
+  }
+  reduced() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  put(o) { return new Promise((r) => this.setState(o, r)); }
+  save(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* ignore */ } }
+
+  /* ---------- 3. CRANE SEQUENCE ---------- */
+  go(id) {
+    this.next = id;
+    if (!this.busy) this.loop();
+  }
+  async loop() {
+    this.busy = true;
+    while (this.next != null && !this.dead) {
+      const id = this.next; this.next = null;
+      await this.sequence(id);
+    }
+    this.busy = false;
+  }
+  async sequence(id) {
+    const s = this.state; const L = layout(s.W); const r = L.rest[IDX[id]]; const cur = s.held;
+    if (cur === id && s.content) return;
+    if (this.reduced()) {
+      await this.put({ held: id, cx: s.W / 2, rod: 36, fing: 'closed', straight: true, big: true, doors: true, content: true });
+      return this.focusTitle();
+    }
+    if (cur) { // 1-3: close doors, shrink, lower back, release
+      const cr = L.rest[IDX[cur]];
+      await this.put({ content: false }); await sleep(120);
+      await this.put({ doors: false }); await sleep(650);
+      await this.put({ big: false, straight: false, cx: cr.x, rod: cr.y - RAIL_TO_HEAD }); await sleep(750);
+      await this.put({ fing: 'open' }); await sleep(350);
+      await this.put({ held: null });
+    }
+    await this.put({ cx: r.x, rod: 30, fing: 'open' }); await sleep(700);       // 4: above target
+    await this.put({ rod: r.y - RAIL_TO_HEAD }); await sleep(700);               // 5: lower
+    await this.put({ fing: 'closed' }); await sleep(420);                        // 6: grip
+    await this.put({ held: id, rod: 36 }); await sleep(700);                     // 7: lift
+    await this.put({ cx: s.W / 2 }); await sleep(750);                           // 8: to upper centre
+    await this.put({ straight: true }); await sleep(500);                        // 9: straighten
+    await this.put({ big: true }); await sleep(750);                             // 10: enlarge
+    await this.put({ doors: true }); await sleep(800);                           // 11: doors
+    await this.put({ content: true });                                           // 12: reveal
+    this.focusTitle();
+  }
+  focusTitle() { setTimeout(() => { const el = this.root.getElementById('sec-title'); if (el) el.focus({ preventScroll: true }); }, 120); }
+
+  /* ---------- view actions ---------- */
+  navTo(id) {
+    if (this.state.mode === 'recruiter') {
+      const el = this.root.getElementById('sec-' + id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      this.setState({ held: id });
+    } else this.go(id);
+  }
+  setMode(mode) {
+    this.setState({ mode }); this.save('depot-mode', mode);
+    if (mode === 'recruiter' && this.state.held) setTimeout(() => { const el = this.root.getElementById('sec-' + this.state.held); if (el) el.scrollIntoView({ block: 'start' }); }, 60);
+    if (mode === 'experience' && !this.state.held && !this.busy && !this.state.loading) setTimeout(() => this.go('intro'), 300);
+  }
+  onKey(e) {
+    if (e.key !== 'Escape') return;
+    if (this.state.detailId) return this.setState({ detailId: null });
+    if (this.state.mode === 'experience') this.go('intro');
+  }
+
+  /* ---------- 4. VIEW ---------- */
+  renderVals() {
+    const s = this.state; const L = layout(s.W); const night = s.theme === 'night'; const exp = s.mode === 'experience';
+    const self = this;
+
+    // theme tokens
+    const nightBg = 'radial-gradient(circle at 15% 0,#2B3A9A 0,transparent 45%),radial-gradient(circle at 90% 30%,#5A2A8F 0,transparent 40%),linear-gradient(160deg,#050B1E,#0A1636 55%,#112455)';
+    const stageBg = night ? nightBg : 'radial-gradient(circle at 15% 0,#7FD6FF 0,transparent 45%),radial-gradient(circle at 90% 25%,#8F7BFF 0,transparent 40%),linear-gradient(160deg,#0F74E0,#1F93F2 55%,#46B8FF)';
+    const recBg = night ? nightBg : 'radial-gradient(circle at 10% 0,#CFE8FF 0,transparent 45%),radial-gradient(circle at 95% 20%,#E3D9FF 0,transparent 40%),linear-gradient(#EEF6FF,#F8FBFF)';
+    const navy = night ? '#060C20' : '#0B1634';
+    const navy2 = night ? '#14235A' : '#173A82';
+    const rootVars = '--navy:' + navy + ';--navy2:' + navy2 + ';--cc:' + (night ? '#f5f5f5' : '#fffb00') + ';--co:' + (night ? '#aaaaaa' : '#ffa500') + ';';
+
+    // crane geometry
+    const heldIdx = s.held ? IDX[s.held] : -1;
+    const heldRest = heldIdx >= 0 ? L.rest[heldIdx] : null;
+    const heldW = heldRest ? (s.big ? L.ow : heldRest.w) : 0;
+    const arm = s.fing === 'open' || !heldRest ? 46 : Math.max(40, (heldW - 72) / 2);
+    const rot = s.fing === 'open' ? 16 : 0;
+
+    // containers
+    const boxes = SECTIONS.map((c, i) => {
+      const r = L.rest[i]; const isHeld = s.held === c.id;
+      let left = r.x - r.w / 2, top = r.y, w = r.w, h = r.h, rx = -14, ry = r.ry, rz = r.rz, z = r.z;
+      if (isHeld) {
+        w = s.big ? L.ow : r.w; h = s.big ? L.oh : r.h;
+        left = s.cx - w / 2; top = RAIL_TO_HEAD + s.rod; z = 50;
+        if (s.straight) { rx = 0; ry = 0; rz = 0; }
+      }
+      const open = isHeld && s.doors;
+      const doorEase = open ? '.9s cubic-bezier(.34,1.45,.5,1)' : '.6s cubic-bezier(.55,0,.25,1)';
+      const glow = night ? '0 0 22px ' + c.color + '99,0 0 2px #ffffff66' : '0 0 0 transparent';
+      return {
+        n: c.n, a: c.a, b: c.b, ink: c.ink, fs: Math.max(12, w * .09),
+        style: 'left:' + left + 'px;top:' + top + 'px;width:' + w + 'px;height:' + h + 'px;z-index:' + z + ';--c:' + c.color + ';--d:' + r.d + 'px;--navy:' + navy + ';--navy2:' + navy2 + ';--glow:' + glow + ';transform:rotateX(' + rx + 'deg) rotateY(' + ry + 'deg) rotateZ(' + rz + 'deg)',
+        doorL: 'transform:' + (open ? 'rotateY(-104deg)' : 'translateZ(1px)') + ';transition:transform ' + doorEase,
+        doorR: 'transform:' + (open ? 'rotateY(104deg)' : 'translateZ(1px)') + ';transition:transform ' + doorEase,
+        showLabel: !isHeld || !s.doors,
+        clickable: !(isHeld && s.big),
+        aria: 'Open ' + c.nav + ' section, container ' + c.n,
+        pick: () => self.navTo(c.id),
+      };
+    });
+
+    // sections to render
+    const visible = exp ? (s.held && s.content ? [s.held] : []) : RECRUITER_ORDER;
+    const sections = visible.map((id) => {
+      const c = SECTIONS[IDX[id]];
+      return { anchor: 'sec-' + id, titleId: exp ? 'sec-title' : 'h-' + id, cls: exp ? 'sec' : 'sec sec-r', color: c.color, aria: c.nav, kick: c.kick, h1: c.h[0], h2: c.h[1], h3: c.h[2],
+        isIntro: id === 'intro', isWork: id === 'work', isAbout: id === 'about', isExp: id === 'exp', isAch: id === 'ach', isTool: id === 'tool', isHello: id === 'hello' };
+    });
+
+    // work
+    const projList = PROJECTS.filter((p) => s.filter === 'all' || p.tags.includes(s.filter));
+    const projects = projList.map((p) => ({ ...p, meta: [p.role, p.tools.slice(0, 4).join(', ')].filter(Boolean).join(' · '), hasImg: !!p.img, img: p.img || '', hasUrl: !!p.url, aria: 'View details for ' + p.title, open: () => self.setState({ detailId: p.id, detailTab: 'overview' }) }));
+    const projectFilters = PROJECT_FILTERS.map(([id, label]) => ({ label, on: s.filter === id, cls: 'chip' + (s.filter === id ? ' on' : ''), pick: () => self.setState({ filter: id }) }));
+
+    // detail modal
+    const dp = PROJECTS.find((p) => p.id === s.detailId);
+    let detail = { on: false, tabs: [], rows: [], hasUrl: false, title: '', cat: '', desc: '', n: '', kind: '', color: '#1D55D8', url: '' };
+    if (dp) {
+      const tabs = [['overview', 'Overview', dp.detail.overview], ['approach', 'Approach', dp.detail.approach], ['role', 'Role & tools', [['Role', dp.role || '—'], ['Tools', dp.tools.length ? dp.tools.join(', ') : '—']]], ['output', 'Output', dp.detail.output]].filter((t) => t[2]);
+      const act = tabs.find((t) => t[0] === s.detailTab) || tabs[0];
+      detail = { on: true, title: dp.title, cat: dp.cat, desc: dp.desc, n: dp.n, kind: dp.kind, color: dp.color, hasUrl: !!dp.url, url: dp.url,
+        tabs: tabs.map((t) => ({ label: t[1], on: t[0] === act[0], cls: 'chip' + (t[0] === act[0] ? ' on' : ''), pick: () => self.setState({ detailTab: t[0] }) })),
+        rows: act[2].map(([k, v]) => ({ k, v })) };
+    }
+
+    // about
+    const aboutPillars = ABOUT_PILLARS.map((p, i) => ({ ...p, on: s.pillar === i, cls: s.pillar === i ? 'on' : '', pick: () => self.setState({ pillar: i }) }));
+
+    // experience
+    const expTabs = [['pro', 'PROFESSIONAL EXPERIENCE'], ['org', 'ORGANIZATION & LEADERSHIP']].map(([id, label]) => ({ label, on: s.expTab === id, cls: 'chip' + (s.expTab === id ? ' on' : ''), pick: () => self.setState({ expTab: id, expOpen: EXPERIENCE[id][0].id }) }));
+    const expItems = EXPERIENCE[s.expTab].map((e) => { const open = s.expOpen === e.id; return { ...e, open, sign: open ? '−' : '+', toggle: () => self.setState({ expOpen: open ? null : e.id }) }; });
+
+    // achievements
+    const okAch = (a) => s.achFilter === 'all' || a.cat.includes(s.achFilter);
+    const achFilters = ACH_FILTERS.map(([id, label]) => ({ label, on: s.achFilter === id, cls: 'chip' + (s.achFilter === id ? ' on' : ''), pick: () => self.setState({ achFilter: id }) }));
+
+    // skills
+    const cat = SKILL_CATS.find((k) => k.id === s.skillCat);
+    const lower = cat.keys.map((k) => k.toLowerCase());
+    const related = PROJECTS.filter((p) => p.tools.some((t) => lower.includes(t.toLowerCase()))).map((p) => p.title);
+    const skillNow = { skills: cat.skills, related: related.length ? related : ['Applied across every project and role'], apply: cat.apply, exp: cat.exp };
+    const skillCats = SKILL_CATS.map((k) => ({ label: k.label, on: k.id === s.skillCat, cls: 'chip' + (k.id === s.skillCat ? ' on' : ''), pick: () => self.setState({ skillCat: k.id }) }));
+
+    // chrome
+    const navItems = NAV_ITEMS.map((id) => ({ label: SECTIONS[IDX[id]].nav, cls: 'lk' + (s.held === id ? ' on' : ''), pick: () => self.navTo(id) }));
+    const hostStyle = exp
+      ? 'left:' + ((s.W - L.ow) / 2 + 8) + 'px;top:' + (L.navH + L.openTop + 8) + 'px;width:' + (L.ow - 16) + 'px;height:' + (L.oh - 16) + 'px;display:' + (s.content ? 'block' : 'none')
+      : '--tx:' + (night ? '#fff' : '#0A1A44') + ';--tx2:' + (night ? '#C3D0F0' : '#43507A') + ';--card:' + (night ? '#0E1838' : '#fff') + ';--line:' + (night ? 'rgba(255,255,255,.16)' : '#D5E0F5') + ';--acc:' + (night ? '#FFD23F' : '#1D55D8') + ';max-width:1120px;margin:0 auto;padding:24px clamp(12px,3vw,40px) 80px;position:relative';
+
+    return {
+      rootClass: 'root' + (L.m ? ' m' : ''),
+      rootStyle: rootVars + 'background:' + (exp ? stageBg : recBg) + ';color:' + (exp || night ? '#fff' : '#0A1A44'),
+      navBg: exp ? (night ? 'rgba(5,11,30,.55)' : 'rgba(255,255,255,.12)') : (night ? 'rgba(7,13,34,.9)' : '#0F5BC0'),
+      loading: s.loading, skipLoad: () => self.finishLoad(),
+      navH: L.navH, navItems, goIntro: () => self.navTo('intro'),
+      isExperience: exp, isRecruiter: !exp, expCls: exp ? 'on' : '', recCls: exp ? '' : 'on',
+      setExperience: () => self.setMode('experience'), setRecruiter: () => self.setMode('recruiter'),
+      isNight: night, toggleTheme: () => { const t = night ? 'day' : 'night'; self.setState({ theme: t }); self.save('depot-theme', t); },
+      themeLabel: night ? 'Switch to day (Bright Depot)' : 'Switch to night (Midnight Depot)', knobLeft: night ? 33 : 3,
+      onKey: (e) => self.onKey(e),
+      stageH: L.stageH, bigTop: L.pileTop - 40 + (L.stageH - L.pileTop) / 2 - 130, subTop: L.stageH - 34,
+      cx: s.cx, rod: s.rod, headTop: 56 + s.rod, arm, rotL: rot, rotR: -rot, boxes,
+      hostClass: exp ? 'host-x' : '', hostStyle, sections,
+      pillars: PILLARS, goWork: () => self.navTo('work'),
+      projectFilters, projects, detail, closeDetail: () => self.setState({ detailId: null }), stop: (e) => e.stopPropagation(),
+      aboutPillars,
+      expTabs, expItems,
+      achFilters, achFeatured: ACH_FEATURED.filter(okAch), achMore: ACH_MORE.filter(okAch), showMentor: s.achFilter === 'all' || s.achFilter === 'leadership',
+      skillCats, skillNow, process: PROCESS, certs: CERTS,
+      typedText: this.reduced() ? PHRASES[0] : PHRASES[s.tp].slice(0, s.tc),
+      toolsUsed: TOOLS_USED, blobOp: night ? .3 : .5, railCls: exp ? 'scroller' : 'grid3',
+      dragDown: (e) => { self.drag = { x: e.clientX, l: e.currentTarget.scrollLeft, el: e.currentTarget }; },
+      dragMove: (e) => { const d = self.drag; if (d && e.buttons === 1) d.el.scrollLeft = d.l - (e.clientX - d.x); },
+      dragUp: () => { self.drag = null; },
+      socials: SOCIALS, cvUrl: CV_URL,
+    };
+  }
+}
+
+return Component;
+})();
+const RecruiterC = (function () {
+
+
+/* ===== DATA ===== */
+const IMG = {
+  bokem: 'WEBRBOKEM.png', tegak: 'tegakv2.jpeg',
+  sambar: 'sambarv3.png', love: 'weblovecalcu.png',
+  books: 'webbooksaniest.png', more: 'etc.png',
+  dorh: 'webdorh.jpg', info: 'infografis.png',
+};
+const ONEDRIVE = 'https://onedrive.live.com/personal/fbdc9b6451af85d4/_layouts/15/Doc.aspx?sourcedoc=%7Ba4c2b48f-ab11-4108-9e7e-e4d3c84f39a3%7D&action=default&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mYmRjOWI2NDUxYWY4NWQ0L0VZLTB3cVFScXdoQm5uN2swOGhQT2FNQndnYTh4cjFaM0dlbUpIS3J4aGlPX1E_ZT1VZnlzSTM&slrid=920a51a2-60a6-2000-685d-6eb62d50bbc9&originalPath=aHR0cHM6Ly9vbmVkcml2ZS5saXZlLmNvbS86eDovZy9wZXJzb25hbC9mYmRjOWI2NDUxYWY4NWQ0L0lRQ1B0TUtrRWFzSVFaNS01TlBJVHptakFjSUd2TWE5V2R4bnBpUnlxOFlZanYwP3J0aW1lPU45dEIwTnBIMzBnJnJlZGVlbT1hSFIwY0hNNkx5OHhaSEoyTG0xekwzZ3ZZeTltWW1Sak9XSTJORFV4WVdZNE5XUTBMMFZaTFRCM2NWRlNjWGRvUW01dU4yc3dPR2hRVDJGTlFuZG5ZVGg0Y2pGYU0wZGxiVXBJUzNKNGFHbFBYMUVfWlQxVlpubHpTVE0&CID=cc0d3451-8cb3-4309-99f1-982c5460715a&_SRM=0:G:109';
+// [title, category, label, description, tags, url, image]
+const P = [
+  ['ANALYZE PEFINDO-25', 'Financial Analytics', 'Live dashboard', '25 listed companies, 2020–2023: data quality, returns, valuation, K-Means clusters, macro. Forecast Lab in progress.', ['Python', 'K-Means', 'Dashboard'], 'https://sunnihn.github.io/Analyze-PEFINDO-25/', 'pefindo.png'],
+  ['Peta Arus Perpindahan Pendidikan Indonesia', 'Data Storytelling', 'Live story', 'Interactive geographic story about education mobility across Indonesia.', ['Geographic data', 'Visualization'], 'https://sunnihn.github.io/Peta-Arus-Perpindahan-Pendidikan-Indonesia/', 'petaarus.png'],
+  ['Bokem Calculator', 'Statistics', '2025', 'An interactive R Shiny application for statistical analysis.', ['R Shiny', 'Statistics'], 'https://sunnidashboard.shinyapps.io/Checkbokemkamu/', IMG.bokem],
+  ['RULA/REBA Biomechanics Engine', 'Computer Vision', '2025', 'Real-time posture and ergonomic risk assessment using live webcam tracking and RULA/REBA formulas.', ['Python', 'MediaPipe', 'WebRTC'], 'https://sunnihn.github.io/tegak/', IMG.tegak],
+  ['Interactive SAMBAR Gateway Analyzer', 'Battery Analytics', '2025', 'EV battery triage dashboard: state of health, impedance, EIS response, thermal diagnostics.', ['Python', 'Streamlit', 'EIS'], 'https://sunnihn.github.io/sambarv3/', IMG.sambar],
+  ['E-Commerce Aspect-Based Sentiment', 'NLP & Machine Learning', 'Thesis', 'Tokopedia and Shopee electronics reviews, IndoBERT + Conv1D + BiLSTM, Streamlit dashboard.', ['IndoBERT', 'BiLSTM', 'Streamlit'], ''],
+  ['East Java Tourism Sentiment & Topics', 'Research', 'Research', 'Tourist reviews across East Java: sentiment patterns and experience topics.', ['BiLSTM', 'LDA', 'Tableau'], ''],
+  ['Love Calculator', 'Fun', '2025', 'A fun interactive tool that calculates compatibility scores.', ['R Shiny', 'UI/UX'], 'https://apsslucusunni.shinyapps.io/TestingurLovewithu/', IMG.love],
+  ['EcDorH UI/UX Design', 'UI/UX', '2024', 'Complete UI/UX redesign for a campus organization website.', ['Figma', 'UI/UX'], 'https://www.canva.com/design/DAGWmO2oCv8/NdsEsfyfPuWdSSk9HR1mRQ/edit', IMG.dorh],
+  ['Bookstore Prototype', 'Web', '2024', 'A functional bookstore website prototype with categories, cart and login.', ['HTML/CSS', 'JavaScript'], 'https://sunnihn.github.io/booksaniest/index.html', IMG.books],
+  ['Employment in Indonesia', 'Data Viz', '2024', 'Data visualization analyzing employment trends across provinces.', ['Data Viz', 'Infographic'], 'https://www.canva.com/design/DAGZ1Z3JbaI/PM28POQjtd5PqPHrCk7DMQ/edit', IMG.info],
+  ['Employment Dashboard', 'Dashboard', 'Dashboard', 'Interactive dashboard on employment in Indonesia (OneDrive).', ['Dashboard', 'Data analysis'], ONEDRIVE],
+  ['Demographic & Macroeconomic Research', 'Quantitative Research', 'Research', 'Nationwide demographic and regional GDP analysis with panel regression and Chow tests.', ['R', 'Panel regression', 'SPSS'], ''],
+  ['Cross-Cultural Network Analysis', 'International Research', 'USM exchange', 'Network analysis of cross-cultural interaction at Universiti Sains Malaysia.', ['R', 'igraph', 'SNA'], ''],
+  ['Business & Market Research', 'Business', 'Ventures', 'Process mapping, target-market analysis and brand strategy for Colorex, Nutricost, Ecdorh, Shine and Manutor.', ['Market research', 'Figma', 'Canva'], ''],
+  ['Other Projects', 'Archive', 'Ongoing', 'Collection of smaller projects including SQL and data analysis.', ['SQL', 'Excel'], 'https://drive.google.com/drive/u/1/folders/13YbmHbd9k-hqUJFSY7D_7zxX3dHXXd4b', IMG.more],
+];
+const E = [
+  ['Harisenin.com', 'Operation Success Talent Intern · Jan 2026 – Apr 2026', 'Onboarding, workflows, SOPs.'],
+  ['miHoYo', 'Digital Marketing Intern · Jun 2025 – Jul 2025', 'Campaigns for a global gaming audience.'],
+  ['Colorex ID', 'Marketing & Internal Coordinator · Mar 2025 – Sep 2026', 'TikTok and Instagram campaigns, skin-tone data.'],
+  ['Business Statistics, ITS', 'Teaching Assistant · Sep 2024 – Jun 2026', '4 courses over 4 semesters.'],
+  ['UKM Heroes Day Esports ITS', 'Head of Sponsorship · Jan 2025 – Nov 2025', 'Funding strategy and partner deals.'],
+  ['GDGoC ITS', 'Business Development & Sponsorship · Nov 2024 – Nov 2025', 'Industry partnerships for tech programs.'],
+  ['HIMADATA ITS', 'Head & Staff, Academic Achievement · Dec 2024 – Dec 2025', 'Mentored 16+ competition teams.'],
+  ['HIPMI PT ITS', 'Startup & MSME Staff · Oct 2024 – Dec 2025', 'Startup guidance and workshops.'],
+  ['TDC ITS', 'Member & Entrepreneur · Sep 2024 – Nov 2025', 'Incubator training, launched an F&B venture.'],
+  ['Peta Scholar', 'R&D Staff · May 2025 – Dec 2025', 'Scholarship databases and guides.'],
+];
+const A = [
+  ['Top 15 National Semifinalist', 'SIC / Satria Data 2025 · Team Leader', 'Statistics infographic competition.'],
+  ['3rd Winner', 'Hasanuddin Infographic Competition 2026', 'Infographic design.'],
+  ['1st Best Design Poster', 'Demo Day CDP Fair 2025', 'Poster design.'],
+  ['Grant Awardee', 'HETI Student Youngership ITS 2025', 'Growth Stage Funding.'],
+  ['Invited Keynote Speaker', 'TDC ITS 2026', 'How to Make Business Model Canvas.'],
+  ['Invited Keynote Speaker', 'Geomatika ITS Webinar 2026', 'How to Craft an Actionable Business Plan.'],
+  ['Finalist', 'GDSC Hackfest Indonesia 2024', 'Google Developer Student Club.'],
+  ['2nd Winner', 'Business Plan Competition, KWU HIMADATA-ITS · Nov 2024', 'Chief Executive Officer.'],
+  ['Finalist', 'TSF Business Plan Competition · Nov 2024', 'Chief Design Officer.'],
+  ['3rd Winner', 'Business Model Competition, Dies Natalis 42 Kopma Dr. Angka ITS · May 2024', 'Chief Executive Officer.'],
+  ['Semifinalist', 'BPC IYREFF 2024, SRE ITB', 'Society of Renewable Energy.'],
+  ['Rank 13 Semifinalist', 'National Business Plan Competition (NBPC) · Aug 2024', 'Chief Executive Officer.'],
+  ['Youngest Team Leader', 'ITS Internal Team, Satria Data (SIC 2024) · Jun 2024', 'Appointed team leader.'],
+  ['Rank 14 Semifinalist', 'VISIBLE 2023 · Oct 2023', 'Chief Executive Officer.'],
+  ['Delegate', 'Short Program, USM Malaysia', 'International academic exchange.'],
+  ['Best Outstanding Student Award', 'Bimbel Plasma', 'Student award.'],
+];
+const AS = [
+  ['SIC / Satria Data 2025 is a national statistics infographic competition (Jun to Oct 2025).', 'Lead the team as Team Leader.', 'Led a cross-functional team in data analysis and visual story-driven research.', 'Top 15 national semifinalist.'],
+  ['The Hasanuddin Infographic Competition 2026.', 'Turn data into a clear infographic.', 'Designed and submitted an infographic entry.', '3rd winner.'],
+  ['Demo Day at the CDP Fair 2025.', 'Present a design.', 'Designed a poster for the demo day.', '1st Best Design Poster.'],
+  ['HETI Student Youngership ITS 2025 funds student ventures.', 'Apply with a venture at the growth stage.', 'Applied with my business and went through the selection.', 'Grant awardee for Growth Stage Funding.'],
+  ['TDC ITS invited me to speak in 2026.', 'Teach students how to make a Business Model Canvas.', 'Delivered the session "How to Make Business Model Canvas".', 'Invited keynote speaker.'],
+  ['The Geomatika ITS webinar in 2026.', 'Show students how to write a business plan they can act on.', 'Presented "How to Craft an Actionable Business Plan".', 'Invited keynote speaker.'],
+  ['GDSC Hackfest Indonesia 2024, run by Google Developer Student Club.', 'Compete with a team in the hackathon.', 'Built and pitched a team entry.', 'Finalist. Not a winner.'],
+  ['The KWU HIMADATA-ITS business plan competition, Nov 2024.', 'Lead the team as Chief Executive Officer.', 'Led the business plan from idea to submission and presentation.', '2nd winner.'],
+  ['The TSF business plan competition, Nov 2024.', 'Own the design as Chief Design Officer.', 'Designed the team\'s visual materials.', 'Finalist. Not a winner.'],
+  ['The business model competition for Dies Natalis 42 Kopma Dr. Angka ITS, May 2024.', 'Lead the team as Chief Executive Officer.', 'Built the business model and presented it.', '3rd winner.'],
+  ['BPC IYREFF 2024, held by the Society of Renewable Energy at ITB.', 'Compete with a business plan.', 'Submitted and presented a team entry.', 'Semifinalist.'],
+  ['The National Business Plan Competition (NBPC), Aug 2024.', 'Lead the team as Chief Executive Officer.', 'Led the plan and the pitch.', 'Rank 13 semifinalist.'],
+  ['Satria Data (SIC 2024) needed a team leader for the ITS internal team, Jun 2024.', 'Lead the team.', 'Took the team leader role.', 'Appointed as the youngest team leader.'],
+  ['VISIBLE 2023, Oct 2023.', 'Lead the team as Chief Executive Officer.', 'Led the business plan and pitch.', 'Rank 14 semifinalist.'],
+  ['Short program at Universiti Sains Malaysia, Aug 2026 (10 days).', 'Join international cohorts on multidisciplinary projects.', 'Worked across cultures and ran network analysis research.', 'Delegate of the program.'],
+  ['Bimbel Plasma tutoring program.', 'Study well.', 'Kept up my results during the program.', 'Best Outstanding Student Award.'],
+];
+// STAR notes, parallel to E and P. Facts come from the CV and the live sites only.
+const ES = [
+  ['Remote talent operations intern at Harisenin.com, supporting program participants.', 'Keep onboarding and day-to-day handovers running without users dropping off.', 'Streamlined onboarding, operational workflows and query resolution. Tracked operational performance metrics and standardized SOPs for daily cross-team handovers.', 'A cleaner onboarding flow and shared SOPs the team used for every handover.'],
+  ['Remote digital marketing intern at miHoYo, a gaming company with a global audience.', 'Promote products to players in different countries through digital channels.', 'Ran digital marketing strategies and creative promotional campaigns. Analyzed campaign metrics and audience engagement to adjust reach.', 'Campaigns tuned with engagement data instead of guesswork.'],
+  ['Colorex Id is an AI-driven personal color analysis platform aimed at 18 to 35 year olds.', 'Grow its audience and keep faculty progress reporting on track.', 'Led multi-channel campaigns on TikTok and Instagram. Acted as the main liaison for faculty progress reports. Analyzed skin-tone datasets to personalize the recommendation logic.', 'Marketing and product logic both ran on data, and faculty got regular reports through one contact.'],
+  ['Teaching assistant in the Department of Business Statistics, ITS.', 'Help students learn statistical computing and programming over several terms.', 'Taught 4 courses across 4 semesters: Computational Statistics, Web Programming, Database Management Systems and Programming Algorithms. Mentored students in reproducible R and Python, intermediate to advanced SQL and full-stack web integration.', 'Four terms of lab instruction completed.'],
+  ['UKM Heroes Day Esports needed funding for campus tournaments.', 'Lead the sponsorship subdivision and bring partners in.', 'Set the external funding strategy, designed sponsorship proposals and pitches, negotiated partnership terms and tracked sponsor deliverables.', 'A working sponsorship pipeline with clear deliverable tracking for partners.'],
+  ['GDGoC ITS ran tech programs that needed financial backing.', 'Find sponsors and industry partners as business development staff.', 'Secured financial backing and partnerships, designed custom sponsor branding packages and analyzed market trends to refine outreach proposals.', 'Funding and industry partnerships for the chapter\'s tech programs.'],
+  ['HIMADATA ITS wanted its members to compete nationally.', 'Run the academic achievement division and coach competition teams.', 'Built and maintained a database of national statistics, analytics and business case competitions. Mentored 16+ student teams on business plans, case study analysis and poster design.', 'More than 16 teams coached through their competition entries.'],
+  ['HIPMI PT ITS supports student startups and MSMEs on campus.', 'Spot promising student startups and help them grow.', 'Identified high-potential startups, gave tailored guidance on business basics and digital transformation, and organized workshops.', 'Stronger support for the campus entrepreneurial community.'],
+  ['TDC ITS is the campus technopreneurship center.', 'Complete the incubator program and start a real business.', 'Finished the intensive incubator training and launched an active Food & Beverage venture. Managed product development, market strategy and operational risk.', 'A running F&B venture and a TDC incubation certificate.'],
+  ['Peta Scholar helps students find scholarships.', 'Build a central place for scholarship eligibility information.', 'Researched domestic and international scholarship programs, built eligibility databases, analyzed applicant success trends and wrote practical application guides.', 'A central eligibility database and application guides.'],
+];
+const PS = [
+  ['Listed companies are hard to compare on fundamentals and price at the same time.', 'Check whether fundamentals move with price across 25 issuers, 2020 to 2023.', 'Cleaned the data first, then compared returns, valuation and risk. Grouped issuers with K-Means (two clusters) and added macro context. Built a ten-tab dashboard.', 'A live dashboard with cluster, data status, year and issuer filters. The Forecast Lab is still in progress.'],
+  ['Education migration across Indonesian provinces is hard to see in a table.', 'Show it as a story on a map.', 'Used BPS Long Form SP2020 recent migration data for 34 provinces. Built map views for inflow, outflow and net flow, with filters and a top-ranking panel.', 'A live interactive map. See the site for the findings.'],
+  ['Statistical checks need code, which slows non-programmers down.', 'Make a tool anyone can use.', 'Built an R Shiny app for automated statistical analysis with real-time charts (ggplot2, tidyverse).', 'A live app that runs the analysis on demand.'],
+  ['Poor posture at work raises ergonomic risk, and manual scoring is slow.', 'Score posture in real time from a webcam.', 'Combined MediaPipe pose tracking with the RULA and REBA formulas in Python.', 'A live posture assessment tool.'],
+  ['EV battery health is hard to read from raw telemetry.', 'Turn the signals into a triage view.', 'Built a dashboard covering state of health, internal impedance, EIS frequency response and thermal diagnostics (React, Tailwind CSS, Python, Streamlit).', 'A real-time battery health dashboard for predictive triage.'],
+  ['Electronics reviews on Tokopedia and Shopee are too many to read.', 'Measure sentiment by product aspect for my undergraduate thesis.', 'Used IndoBERT with Conv1D and BiLSTM, then built a Streamlit dashboard. Role: Lead Data & Product Analyst.', 'An aspect-based sentiment dashboard for product performance.'],
+  ['East Java tourism needs evidence on what visitors think.', 'Extract sentiment and topics from large-scale tourist reviews.', 'Ran BiLSTM sentiment scoring and LDA topic modeling, and presented results in Tableau or Power BI. Role: Lead Data & Market IT.', 'Sentiment scores and experience topics for regional tourism development. Funded by a lecturer grant.'],
+  ['People enjoy quick, playful tools.', 'Build a fun compatibility calculator.', 'Made an interactive R Shiny app with a custom interface.', 'A live app that returns a compatibility score.'],
+  ['A campus organization website needed a better interface.', 'Redesign its UI/UX.', 'Designed the full interface in Figma.', 'A complete UI/UX redesign.'],
+  ['A bookstore needs a browsable storefront.', 'Prototype one.', 'Built categories, a cart and a login in HTML, CSS and JavaScript.', 'A working bookstore prototype.'],
+  ['Employment numbers differ across provinces.', 'Make the trends readable at a glance.', 'Designed an infographic of employment trends by province in Canva.', 'A finished employment infographic.'],
+  ['Employment data is hard to explore in static charts.', 'Give users an interactive view.', 'Built an interactive dashboard on employment in Indonesia.', 'A dashboard shared through OneDrive.'],
+  ['Regional growth is shaped by demographic and economic factors.', 'Find macro-level consumer and economic insights from national data.', 'Used panel regression (AR-DL, Koyck, Almon) and Chow tests on demographic and regional GDP data in R, Minitab and SPSS. Role: Quantitative Data Analyst.', 'Macro-level insights from nationwide data.'],
+  ['The USM exchange put me in a mixed international cohort.', 'Map how people interact across cultures.', 'Ran social network analysis in R with igraph on cross-cultural interaction data.', 'A view of network density, communities and communication paths.'],
+  ['Five ventures (Colorex, Nutricost, Ecdorh, Shine, Manutor) needed market direction.', 'Guide product strategy and brand positioning.', 'Mapped end-to-end business processes and analyzed target market needs with Google Forms, Notion, Canva and Figma. Role: Marketing Leader & Business Analyst.', 'Market and process findings for product, brand and acquisition decisions. Funded work.'],
+  ['Smaller projects that do not fit one story.', 'Keep them in one place.', 'Includes deep-query SQL analysis on mental health, Brazilian e-commerce and fanbase datasets (SQL, DBeaver, SPSS).', 'An archive folder you can browse.'],
+];
+const CERTS = [
+  ['Google Data Analytics Professional Certificate', 'Google · 2025'],
+  ['Applied Data Science with Python & SQL', 'AWS · 2025'],
+  ['British Council Aptis / CEFR English Test', 'Score: 364 / C1 Equivalent · British Council (Mar 2026)'],
+  ['Entrepreneurship & Business Acceleration Program', 'ITS Entrepreneurship Camp & Maxy Academy (Nov 2025)'],
+  ['Certificate of Business Incubation & Entrepreneurship', 'TDC ITS · Credential No: 755/SF/KEAKTIFABAMDA/HRD/I/2025'],
+];
+const KEYS = ['Situation','Task','Action','Result'];
+const starOf = (a) => a.map((v, i) => ({ l: KEYS[i][0], k: KEYS[i], v }));
+const SLIDES = [['Business Statistics', 'Data-driven by training.'], ['Applied ML & DL', 'Always exploring.'], ['UI/UX & Visual', 'Designed to be used.']];
+const PHRASES = ['Business & Data Analyst', 'Business Statistics student @ ITS', 'aiming 4 a Global Career in Formula 1', 'aiming 4 a Global Career in FAANG'];
+const MENU = [['Home', '#home'], ['Work', '#works'], ['Experience', '#exp'], ['Achievements', '#ach'], ['About', '#about'], ['3D Mode', 'Main.dc.html']];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+class Component extends DCLogic {
+  onShow() { try { const t = sessionStorage.getItem('depot-theme'); this.setState({ dark: t === 'night' }); } catch (e) { /* ignore */ } }
+  constructor(...args) {
+    super(...args);
+    this.state = { loading: true, pct: 0, out: false, dark: false, menu: false, modal: false, slide: 0, swap: false, open: '', tp: 0, tc: 0, td: false, now: new Date() };
+    this.hold = 0;
+  }
+  componentDidMount() {
+    try { if (sessionStorage.getItem('depot-theme') === 'night') this.setState({ dark: true }); } catch (e) { /* ignore */ }
+    const t0 = performance.now();
+    this.load = setInterval(() => {
+      const t = Math.min((performance.now() - t0) / 1300, 1);
+      const e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      this.setState({ pct: Math.round(e * 100) });
+      if (t >= 1) { clearInterval(this.load); this.setState({ out: true }); setTimeout(() => { this.setState({ loading: false }); this.reveal(); }, 700); }
+    }, 40);
+    this.clock = setInterval(() => this.setState({ now: new Date() }), 1000);
+    this.type = setInterval(() => this.tick(), 55);
+    this.onMove = (e) => { const c = this.root.getElementById('rp-cursor'); if (c) { c.style.left = e.clientX + 'px'; c.style.top = e.clientY + 'px'; } };
+    this.onOver = (e) => { const c = this.root.getElementById('rp-cursor'); if (!c || !e.target.closest) return; c.classList.toggle('h', !!e.target.closest('a,button,.cd,.rw,.tilt')); c.classList.toggle('b', !!e.target.closest('.so a:nth-child(odd),.si.bh')); };
+    this.root.addEventListener('mousemove', this.onMove); this.root.addEventListener('mouseover', this.onOver);
+    this.onClick = (e) => { if (e.target.closest && e.target.closest('a,button,input,.cd,.rw,.tilt,#hcard,#nm,#md,.si')) return; this.puff(e.clientX, e.clientY); };
+    this.root.addEventListener('click', this.onClick);
+    this.failsafe = setTimeout(() => this.revealAll(), 4000);
+  }
+  puff(x, y) { // white cloud burst where the background is clicked
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const n = 6 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div'), s = 36 + Math.random() * 44;
+      d.style.cssText = 'position:fixed;pointer-events:none;z-index:9999;border-radius:50%;width:' + s + 'px;height:' + s + 'px;left:' + (x - s / 2 + (Math.random() - .5) * 50) + 'px;top:' + (y - s / 2 + (Math.random() - .5) * 28) + 'px;background:radial-gradient(circle at 35% 35%,#fff,rgba(255,255,255,.85) 55%,rgba(255,255,255,0) 72%);filter:blur(3px) drop-shadow(0 4px 10px rgba(90,130,190,.35))';
+      document.body.appendChild(d);
+      const dx = (Math.random() - .5) * 90, dy = -40 - Math.random() * 70;
+      const a = d.animate([{ transform: 'translate(0,0) scale(.2)', opacity: 0 }, { opacity: .95, offset: .25 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(1.5)', opacity: 0 }], { duration: 1500 + Math.random() * 900, easing: 'cubic-bezier(.2,.7,.3,1)', delay: i * 45, fill: 'both' });
+      a.onfinish = () => d.remove();
+    }
+  }
+
+  componentWillUnmount() {
+    this.root.removeEventListener('click', this.onClick);
+    [this.load, this.clock, this.type].forEach(clearInterval); clearTimeout(this.failsafe);
+    this.root.removeEventListener('mousemove', this.onMove); this.root.removeEventListener('mouseover', this.onOver);
+    if (this.io) this.io.disconnect();
+  }
+  reveal() { // scroll-in animation for .rv blocks
+    if (!window.IntersectionObserver) return this.revealAll();
+    this.io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); this.io.unobserve(e.target); } }), { threshold: .12 });
+    this.root.querySelectorAll('.rp .rv, .rp #h1').forEach((el) => this.io.observe(el));
+  }
+  revealAll() { this.root.querySelectorAll('.rp .rv, .rp #h1').forEach((el) => el.classList.add('in')); }
+  tick() { // typewriter
+    const s = this.state; if (s.loading) return;
+    if (this.hold > 0) { this.hold--; return; }
+    const full = PHRASES[s.tp];
+    if (!s.td) { if (s.tc < full.length) this.setState({ tc: s.tc + 1 }); else { this.hold = 26; this.setState({ td: true }); } }
+    else if (s.tc > 0) this.setState({ tc: s.tc - 1 });
+    else this.setState({ td: false, tp: (s.tp + 1) % PHRASES.length });
+  }
+  step(n) { this.setState({ swap: true }); setTimeout(() => this.setState({ slide: (this.state.slide + n + SLIDES.length) % SLIDES.length, swap: false }), 200); }
+
+  renderVals() {
+    const s = this.state; const self = this; const d = s.now;
+    const h = d.getHours();
+    const time = (h % 12 || 12) + ':' + String(d.getMinutes()).padStart(2, '0') + (h >= 12 ? 'pm' : 'am');
+    const tog = (k) => () => self.setState({ open: s.open === k ? '' : k });
+    const row = (r, i, pre, st) => { const k = pre + i, o = s.open === k && !!st; return { n: '0' + (i + 1), a: r[0], b: r[1], c: r[2], d: i * 80 + 'ms', open: o, cls: o ? 'rw open' : 'rw', toggle: st ? tog(k) : () => {}, star: st ? starOf(st[i]) : [] }; };
+    return {
+      themeCls: s.dark ? 'dark' : '', loading: s.loading, ldCls: s.out ? 'out' : '', pct: s.pct, pctText: String(s.pct).padStart(3, '0'),
+      time, date: d.getDate() + ' ' + MONTHS[d.getMonth()] + ', ' + d.getFullYear(),
+      themeIcon: s.dark ? '#su' : '#mo2',
+      toggleTheme: () => { const dark = !s.dark; self.setState({ dark }); try { sessionStorage.setItem('depot-theme', dark ? 'night' : 'day'); } catch (e) { /* ignore */ } },
+      openMenu: () => self.setState({ menu: true }), closeMenu: () => self.setState({ menu: false }), menuCls: s.menu ? 'o' : '',
+      openModal: (e) => { if (e && e.preventDefault) e.preventDefault(); self.setState({ modal: true, menu: false }); }, closeModal: () => self.setState({ modal: false }),
+      modalBg: (e) => { if (e.target === e.currentTarget) self.setState({ modal: false }); }, modalCls: s.modal ? 'o' : '',
+      onKey: (e) => { if (e.key === 'Escape') self.setState({ menu: false, modal: false }); },
+      typed: PHRASES[s.tp].slice(0, s.tc),
+      tiltMove: (e) => { const el = e.currentTarget, r = el.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5; el.style.transform = 'rotateX(' + (py * -8).toFixed(2) + 'deg) rotateY(' + (px * 10).toFixed(2) + 'deg)'; },
+      tiltLeave: (e) => { e.currentTarget.style.transform = ''; },
+      slide: { a: SLIDES[s.slide][0], b: SLIDES[s.slide][1] }, slCls: s.swap ? 'sl sw' : 'sl',
+      dots: SLIDES.map((x, i) => ({ cls: i === s.slide ? 'a' : '' })),
+      nextSlide: (e) => { e.stopPropagation(); self.step(1); }, prevSlide: (e) => { e.stopPropagation(); self.step(-1); },
+      projectCount: P.length,
+      cards: P.map((p, i) => ({ d: i * 90 + 'ms', url: p[5], hasUrl: !!p[5], stop: (e) => e.stopPropagation(), open: s.open === 'p' + i, toggle: tog('p' + i), star: starOf(PS[i]), cls: s.open === 'p' + i ? 'cd open' : 'cd', meta: p[1] + ' — ' + p[2], title: p[0], desc: p[3], tags: p[4], img: p[6] || '', hasImg: !!p[6], noImg: !p[6], wcls: p[6] ? 'w im' : 'w' })),
+      rows: E.map((r, i) => row(r, i, 'e', ES)), ach: A.map((r, i) => row(r, i, 'a', AS)),
+      certs: CERTS.map((c) => ({ t: c[0], d: c[1] })),
+      menuItems: MENU.map((m, i) => ({ n: '0' + (i + 1), label: m[0], href: m[1] })),
+    };
+  }
+}
+
+
+return Component;
+})();
+const T = { depot: "\n\n\n<div id=\"depot-root\" class=\"{{rootClass}}\" style=\"{{rootStyle}}\" onKeyDown=\"{{onKey}}\">\n  <div class=\"cursor\" id=\"depot-cursor\" aria-hidden=\"true\"><\/div>\n\n  <!-- LOADER -->\n  <sc-if value=\"{{loading}}\" hint-placeholder-val=\"{{false}}\">\n    <div class=\"loader\" onClick=\"{{skipLoad}}\" role=\"status\" aria-label=\"Loading portfolio. Click to skip.\">\n      <b>Sunni'S Portfolio<\/b>\n      <span>INITIALIZING CREATIVE SYSTEM...<\/span>\n      <span>LOADING PORTFOLIO 001...<\/span>\n      <span>READY TO EXPLORE.<\/span>\n      <div class=\"bar\"><i><\/i><\/div>\n    <\/div>\n  <\/sc-if>\n\n  <div class=\"blobs\" aria-hidden=\"true\" style=\"opacity:{{blobOp}}\"><i class=\"blob b1\"><\/i><i class=\"blob b2\"><\/i><i class=\"blob b3\"><\/i><\/div>\n\n  <!-- NAVIGATION -->\n  <header class=\"nav\" style=\"height:{{navH}}px;background:{{navBg}}\">\n    <button class=\"brand\" onClick=\"{{goIntro}}\" aria-label=\"Sunni Hanifah. Go to introduction.\">\n      <span class=\"logo\">S<\/span>\n      <span class=\"bt\"><b>SUNNI<\/b><small>Sunni Hanifah<\/small><\/span>\n    <\/button>\n    <nav class=\"links\" aria-label=\"Portfolio sections\">\n      <sc-for list=\"{{navItems}}\" as=\"n\" hint-placeholder-count=\"5\">\n        <button class=\"{{n.cls}}\" onClick=\"{{n.pick}}\">{{n.label}}<\/button>\n      <\/sc-for>\n    <\/nav>\n    <div class=\"ctl\">\n      \n      <a class=\"talk\" href=\"mailto:sunnihanifah6@gmail.com\">Let's Talk \u2197<\/a>\n      <div class=\"seg\" role=\"group\" aria-label=\"View mode\">\n        <button class=\"{{expCls}}\" aria-pressed=\"{{isExperience}}\" onClick=\"{{setExperience}}\">Experience<\/button>\n        <a class=\"rec\" href=\"Recruiter.dc.html\">Recruiter \u2197<\/a>\n      <\/div>\n      <button class=\"sw\" role=\"switch\" aria-checked=\"{{isNight}}\" aria-label=\"{{themeLabel}}\" onClick=\"{{toggleTheme}}\">\n        <svg class=\"s1\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><path d=\"M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1\"/><\/svg>\n        <svg class=\"s2\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z\"/><\/svg>\n        <span class=\"knob\" style=\"left:{{knobLeft}}px\"><\/span>\n      <\/button>\n    <\/div>\n  <\/header>\n\n  <!-- EXPERIENCE MODE: 3D DEPOT -->\n  <sc-if value=\"{{isExperience}}\" hint-placeholder-val=\"{{true}}\">\n    <div class=\"stage\" style=\"height:{{stageH}}px\">\n      <div class=\"grid\"><\/div>\n      <div class=\"bigword\" style=\"top:{{bigTop}}px\">SUNNI<\/div>\n      <div class=\"subword\" style=\"top:{{subTop}}px\">DATA / BUSINESS / CREATIVE TECHNOLOGY<\/div>\n      <div class=\"rail\"><\/div>\n      <div class=\"crane\" style=\"left:{{cx}}px\">\n        <div class=\"rod\" style=\"height:{{rod}}px\"><\/div>\n        <div class=\"car\"><i class=\"wh w1\"><\/i><i class=\"wh w2\"><\/i><\/div>\n        <div class=\"head\" style=\"top:{{headTop}}px\">\n          <div class=\"fg fgl\" style=\"width:{{arm}}px;transform:rotate({{rotL}}deg)\"><i><\/i><\/div>\n          <div class=\"fg fgr\" style=\"width:{{arm}}px;transform:rotate({{rotR}}deg)\"><i><\/i><\/div>\n        <\/div>\n      <\/div>\n      <sc-for list=\"{{boxes}}\" as=\"b\" hint-placeholder-count=\"7\">\n        <div class=\"cb\" style=\"{{b.style}}\">\n          <div class=\"fc fb\"><\/div><div class=\"fc fl\"><\/div><div class=\"fc fr\"><\/div><div class=\"fc fu\"><\/div><div class=\"fc fd\"><\/div>\n          <div class=\"fc ft\">\n            <div class=\"inner\"><\/div>\n            <div class=\"door dl\" style=\"{{b.doorL}}\"><i class=\"hg h1\"><\/i><i class=\"hg h2\"><\/i><i class=\"hd\"><\/i><\/div>\n            <div class=\"door dr\" style=\"{{b.doorR}}\"><i class=\"hg h1\"><\/i><i class=\"hg h2\"><\/i><i class=\"hd\"><\/i><\/div>\n            <sc-if value=\"{{b.showLabel}}\" hint-placeholder-val=\"{{true}}\">\n              <div class=\"lab\" style=\"font-size:{{b.fs}}px;color:{{b.ink}}\"><span class=\"tag\">{{b.n}}<\/span><b>{{b.a}}<\/b><span>{{b.b}}<\/span><\/div>\n            <\/sc-if>\n            <sc-if value=\"{{b.clickable}}\" hint-placeholder-val=\"{{true}}\">\n              <button class=\"hit\" onClick=\"{{b.pick}}\" aria-label=\"{{b.aria}}\"><\/button>\n            <\/sc-if>\n          <\/div>\n        <\/div>\n      <\/sc-for>\n    <\/div>\n  <\/sc-if>\n\n  <!-- SECTION CONTENT (inside the open container, or stacked in Recruiter Mode) -->\n  <div class=\"host {{hostClass}}\" style=\"{{hostStyle}}\">\n    <sc-for list=\"{{sections}}\" as=\"sec\" hint-placeholder-count=\"1\">\n      <section id=\"{{sec.anchor}}\" class=\"{{sec.cls}}\" style=\"--c:{{sec.color}}\" aria-label=\"{{sec.aria}}\">\n        <div class=\"kick\">{{sec.kick}}<\/div>\n        <h2 id=\"{{sec.titleId}}\" class=\"h2\" tabindex=\"-1\">{{sec.h1}}<span class=\"acc\">{{sec.h2}}<\/span>{{sec.h3}}<\/h2>\n\n        <!-- 01 INTRO -->\n        <sc-if value=\"{{sec.isIntro}}\" hint-placeholder-val=\"{{false}}\">\n          <p class=\"typed\" aria-hidden=\"true\">{{typedText}}<\/p>\n          <p class=\"sr\">Business and Data Analyst. Business Statistics student at ITS, aiming for a global career in Formula 1 and FAANG.<\/p>\n          <p class=\"p lead\">Data meets design, with quiet precision.<\/p>\n          <div class=\"row\" style=\"margin:14px 0\">\n            <sc-for list=\"{{pillars}}\" as=\"pl\" hint-placeholder-count=\"3\"><span class=\"chip\">{{pl.t}}<\/span><\/sc-for>\n          <\/div>\n          <div class=\"facts\"><span><b>D4 Business Statistics<\/b> \u00b7 ITS<\/span><span><b>Indonesia<\/b><\/span><span><b>Graduating<\/b> 2027<\/span><\/div>\n          <div class=\"row\"><button class=\"btn\" onClick=\"{{goWork}}\">View Work \u2197<\/button><a class=\"btn ghost\" href=\"mailto:sunnihanifah6@gmail.com\">Let's Talk<\/a><\/div>\n        <\/sc-if>\n\n        <!-- 02 WORK -->\n        <sc-if value=\"{{sec.isWork}}\" hint-placeholder-val=\"{{false}}\">\n          <sc-if value=\"{{isExperience}}\" hint-placeholder-val=\"{{true}}\"><p class=\"hint\">DRAG OR SWIPE \u2192<\/p><\/sc-if>\n          <div class=\"row\" role=\"group\" aria-label=\"Project filters\" style=\"margin-bottom:14px\">\n            <sc-for list=\"{{projectFilters}}\" as=\"f\" hint-placeholder-count=\"6\">\n              <button class=\"{{f.cls}}\" aria-pressed=\"{{f.on}}\" onClick=\"{{f.pick}}\">{{f.label}}<\/button>\n            <\/sc-for>\n          <\/div>\n          <div class=\"{{railCls}}\" onMouseDown=\"{{dragDown}}\" onMouseMove=\"{{dragMove}}\" onMouseUp=\"{{dragUp}}\" onMouseLeave=\"{{dragUp}}\">\n            <sc-for list=\"{{projects}}\" as=\"pr\" hint-placeholder-count=\"4\">\n              <article class=\"card\">\n                <div class=\"cover\" style=\"--c:{{pr.color}}\"><sc-if value=\"{{pr.hasImg}}\" hint-placeholder-val=\"{{false}}\"><img class=\"cimg\" src=\"{{pr.img}}\" alt=\"\"><\/sc-if><span>{{pr.kind}}<\/span><b>{{pr.n}}<\/b><\/div>\n                <h3>{{pr.title}}<\/h3>\n                <div class=\"lbl\">{{pr.cat}}<\/div>\n                <p class=\"sm\">{{pr.desc}}<\/p>\n                <p class=\"sm\" style=\"margin-top:8px\">{{pr.meta}}<\/p>\n                <div class=\"row\" style=\"margin-top:12px\">\n                  <button class=\"btn ghost\" onClick=\"{{pr.open}}\" aria-label=\"{{pr.aria}}\">View Details<\/button>\n                  <sc-if value=\"{{pr.hasUrl}}\" hint-placeholder-val=\"{{false}}\"><a class=\"btn\" href=\"{{pr.url}}\" target=\"_blank\" rel=\"noopener\">Open Live Project \u2197<\/a><\/sc-if>\n                <\/div>\n              <\/article>\n            <\/sc-for>\n          <\/div>\n        <\/sc-if>\n\n        <!-- 03 ABOUT -->\n        <sc-if value=\"{{sec.isAbout}}\" hint-placeholder-val=\"{{false}}\">\n          <p class=\"p lead\">I'm a Business Statistics student @ ITS bridging statistical modeling, market intelligence, and product strategy.<\/p>\n          <p class=\"p\">My work ranges from running sentiment &amp; topic modeling on large-scale consumer reviews to managing talent operations and leading national-level data competition teams.<\/p>\n          <p class=\"p\">I focus on removing guesswork from business decisions through quantitative research, clear data visualization, and human-centered design.<\/p>\n          <div class=\"row\" style=\"margin:12px 0\">\n            <sc-for list=\"{{toolsUsed}}\" as=\"t\" hint-placeholder-count=\"8\"><span class=\"chip tiny\">{{t}}<\/span><\/sc-for>\n          <\/div>\n          <svg class=\"flow\" viewBox=\"0 0 600 70\" width=\"100%\" height=\"70\" aria-hidden=\"true\" style=\"max-width:600px;display:block\"><path d=\"M110 35 H300 M300 35 H490\" stroke=\"#FFD23F\" stroke-width=\"2\" fill=\"none\"/><circle cx=\"90\" cy=\"35\" r=\"16\" fill=\"#1D55D8\"/><circle cx=\"300\" cy=\"35\" r=\"16\" fill=\"#F6B919\"/><circle cx=\"510\" cy=\"35\" r=\"16\" fill=\"#E5322D\"/><\/svg>\n          <div class=\"pil\" role=\"group\" aria-label=\"Three pillars\">\n            <sc-for list=\"{{aboutPillars}}\" as=\"ap\" hint-placeholder-count=\"3\">\n              <button class=\"{{ap.cls}}\" aria-pressed=\"{{ap.on}}\" onClick=\"{{ap.pick}}\"><b>{{ap.t}}<\/b><span>{{ap.d}}<\/span><\/button>\n            <\/sc-for>\n          <\/div>\n        <\/sc-if>\n\n        <!-- 04 EXPERIENCE -->\n        <sc-if value=\"{{sec.isExp}}\" hint-placeholder-val=\"{{false}}\">\n          <div class=\"row\" role=\"group\" aria-label=\"Experience type\" style=\"margin-bottom:14px\">\n            <sc-for list=\"{{expTabs}}\" as=\"t\" hint-placeholder-count=\"2\">\n              <button class=\"{{t.cls}}\" aria-pressed=\"{{t.on}}\" onClick=\"{{t.pick}}\">{{t.label}}<\/button>\n            <\/sc-for>\n          <\/div>\n          <div class=\"tl\">\n            <sc-for list=\"{{expItems}}\" as=\"e\" hint-placeholder-count=\"4\">\n              <div class=\"tli\">\n                <button class=\"tlb\" aria-expanded=\"{{e.open}}\" onClick=\"{{e.toggle}}\">\n                  <span><b>{{e.org}}<\/b><small>{{e.role}}<\/small><\/span>\n                  <em>{{e.period}} {{e.sign}}<\/em>\n                <\/button>\n                <sc-if value=\"{{e.open}}\" hint-placeholder-val=\"{{false}}\">\n                  <div class=\"tlx\">\n                    <p style=\"margin:0 0 8px\">{{e.where}}<\/p>\n                    <ul><sc-for list=\"{{e.points}}\" as=\"pt\" hint-placeholder-count=\"3\"><li>{{pt}}<\/li><\/sc-for><\/ul>\n                    <div><sc-for list=\"{{e.skills}}\" as=\"sk\" hint-placeholder-count=\"3\"><span class=\"pill\">{{sk}}<\/span><\/sc-for><\/div>\n                  <\/div>\n                <\/sc-if>\n              <\/div>\n            <\/sc-for>\n          <\/div>\n        <\/sc-if>\n\n        <!-- 05 ACHIEVEMENTS -->\n        <sc-if value=\"{{sec.isAch}}\" hint-placeholder-val=\"{{false}}\">\n          <div class=\"row\" role=\"group\" aria-label=\"Achievement filters\" style=\"margin-bottom:14px\">\n            <sc-for list=\"{{achFilters}}\" as=\"f\" hint-placeholder-count=\"6\">\n              <button class=\"{{f.cls}}\" aria-pressed=\"{{f.on}}\" onClick=\"{{f.pick}}\">{{f.label}}<\/button>\n            <\/sc-for>\n          <\/div>\n          <div class=\"{{railCls}}\" onMouseDown=\"{{dragDown}}\" onMouseMove=\"{{dragMove}}\" onMouseUp=\"{{dragUp}}\" onMouseLeave=\"{{dragUp}}\">\n            <sc-for list=\"{{achFeatured}}\" as=\"a\" hint-placeholder-count=\"6\">\n              <article class=\"card\"><span class=\"trophy\">{{a.badge}}<\/span><h3>{{a.title}}<\/h3><p class=\"sm\">{{a.event}}<\/p><p class=\"sm\" style=\"margin-top:6px\">{{a.note}}<\/p><\/article>\n            <\/sc-for>\n          <\/div>\n          <sc-if value=\"{{showMentor}}\" hint-placeholder-val=\"{{true}}\">\n            <div class=\"card\" style=\"margin-top:14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap\"><span class=\"num\">16+<\/span><p class=\"sm\" style=\"flex:1 1 240px\">competition teams mentored in business plan formulation, case study analysis, and poster design (HIMADATA ITS).<\/p><\/div>\n          <\/sc-if>\n          <div class=\"lbl\" style=\"margin:18px 0 8px\">MORE MILESTONES<\/div>\n          <div class=\"grid2\">\n            <sc-for list=\"{{achMore}}\" as=\"a\" hint-placeholder-count=\"8\">\n              <div class=\"card\" style=\"padding:12px 14px\"><b style=\"font-size:14.5px\">{{a.title}}<\/b><p class=\"sm\">{{a.event}}<\/p><\/div>\n            <\/sc-for>\n          <\/div>\n        <\/sc-if>\n\n        <!-- 06 TOOLKIT -->\n        <sc-if value=\"{{sec.isTool}}\" hint-placeholder-val=\"{{false}}\">\n                    <div class=\"row\" role=\"group\" aria-label=\"Skill categories\" style=\"margin-bottom:14px\">\n            <sc-for list=\"{{skillCats}}\" as=\"s\" hint-placeholder-count=\"6\">\n              <button class=\"{{s.cls}}\" aria-pressed=\"{{s.on}}\" onClick=\"{{s.pick}}\">{{s.label}}<\/button>\n            <\/sc-for>\n          <\/div>\n          <div class=\"card\">\n            <div class=\"lbl\">SKILLS<\/div>\n            <div class=\"row\" style=\"margin-bottom:14px\"><sc-for list=\"{{skillNow.skills}}\" as=\"k\" hint-placeholder-count=\"8\"><span class=\"chip tiny\">{{k}}<\/span><\/sc-for><\/div>\n            <div class=\"grid2\">\n              <div><div class=\"lbl\">RELATED PROJECTS<\/div><sc-for list=\"{{skillNow.related}}\" as=\"r\" hint-placeholder-count=\"2\"><p class=\"sm\">\u00b7 {{r}}<\/p><\/sc-for><\/div>\n              <div><div class=\"lbl\">PRACTICAL APPLICATIONS<\/div><p class=\"sm\">{{skillNow.apply}}<\/p><\/div>\n              <div><div class=\"lbl\">RELEVANT EXPERIENCE<\/div><p class=\"sm\">{{skillNow.exp}}<\/p><\/div>\n            <\/div>\n          <\/div>\n          <div class=\"lbl\" style=\"margin:20px 0 8px\">HOW I WORK<\/div>\n          <div class=\"grid3\" style=\"grid-template-columns:repeat(auto-fill,minmax(170px,1fr))\">\n            <sc-for list=\"{{process}}\" as=\"st\" hint-placeholder-count=\"5\">\n              <div class=\"card\"><div class=\"num\">{{st.n}}<\/div><h4 style=\"margin-top:6px\">{{st.t}}<\/h4><\/div>\n            <\/sc-for>\n          <\/div>\n          <div class=\"lbl\" style=\"margin:20px 0 8px\">CERTIFICATIONS<\/div>\n          <div class=\"grid2\">\n            <sc-for list=\"{{certs}}\" as=\"c\" hint-placeholder-count=\"5\">\n              <div class=\"card\" style=\"padding:12px 14px\"><b style=\"font-size:14.5px\">{{c.t}}<\/b><p class=\"sm\">{{c.d}}<\/p><\/div>\n            <\/sc-for>\n          <\/div>\n        <\/sc-if>\n\n        <!-- 07 CONTACT -->\n        <sc-if value=\"{{sec.isHello}}\" hint-placeholder-val=\"{{false}}\">\n          <p class=\"p lead\">Have a data project, a business challenge, or an idea? Let's talk.<\/p>\n          <a class=\"mail\" href=\"mailto:sunnihanifah6@gmail.com\">sunnihanifah6@gmail.com<\/a>\n          <div class=\"facts\"><span><b>Location<\/b> Indonesia<\/span><\/div>\n          <div class=\"row\" style=\"margin-bottom:18px\">\n            <sc-for list=\"{{socials}}\" as=\"so\" hint-placeholder-count=\"3\"><a class=\"chip\" href=\"{{so.url}}\" target=\"_blank\" rel=\"noopener\">{{so.label}} \u2197<\/a><\/sc-for>\n          <\/div>\n          <div class=\"row\">\n            <a class=\"btn\" href=\"mailto:sunnihanifah6@gmail.com\">LET'S TALK \u2197<\/a>\n            <a class=\"btn ghost\" href=\"{{cvUrl}}\" download>DOWNLOAD MY CV<\/a>\n          <\/div>\n        <\/sc-if>\n      <\/section>\n    <\/sc-for>\n  <\/div>\n\n  <!-- PROJECT DETAIL MODAL -->\n  <sc-if value=\"{{detail.on}}\" hint-placeholder-val=\"{{false}}\">\n    <div class=\"modal\" onClick=\"{{closeDetail}}\">\n      <div class=\"mbox\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"dt-title\" onClick=\"{{stop}}\">\n        <button class=\"mx\" onClick=\"{{closeDetail}}\" aria-label=\"Close project details\">\u00d7<\/button>\n        <div class=\"cover\" style=\"--c:{{detail.color}};height:110px\"><span>{{detail.kind}}<\/span><b>{{detail.n}}<\/b><\/div>\n        <div class=\"lbl\">{{detail.cat}}<\/div>\n        <h2 id=\"dt-title\" class=\"h2\" style=\"font-size:clamp(24px,3.4vw,36px)\" tabindex=\"-1\">{{detail.title}}<\/h2>\n        <p class=\"p\">{{detail.desc}}<\/p>\n        <div class=\"row\" role=\"tablist\" aria-label=\"Project detail sections\" style=\"margin:12px 0\">\n          <sc-for list=\"{{detail.tabs}}\" as=\"t\" hint-placeholder-count=\"4\">\n            <button class=\"{{t.cls}}\" role=\"tab\" aria-selected=\"{{t.on}}\" onClick=\"{{t.pick}}\">{{t.label}}<\/button>\n          <\/sc-for>\n        <\/div>\n        <dl class=\"kv\">\n          <sc-for list=\"{{detail.rows}}\" as=\"r\" hint-placeholder-count=\"3\"><dt>{{r.k}}<\/dt><dd>{{r.v}}<\/dd><\/sc-for>\n        <\/dl>\n        <sc-if value=\"{{detail.hasUrl}}\" hint-placeholder-val=\"{{false}}\"><a class=\"btn\" href=\"{{detail.url}}\" target=\"_blank\" rel=\"noopener\" style=\"margin-top:8px\">Open Live Project \u2197<\/a><\/sc-if>\n      <\/div>\n    <\/div>\n  <\/sc-if>\n<\/div>\n", rec: "\n\n<div class=\"rp {{themeCls}}\" onKeyDown=\"{{onKey}}\">\n  <svg width=\"0\" height=\"0\" style=\"position: absolute\"> <defs> <symbol id=\"li\" viewBox=\"0 0 24 24\"> <path fill=\"currentColor\" d=\"M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z\" /> <\/symbol> <symbol id=\"ig\" viewBox=\"0 0 24 24\"> <g class=\"ln\" style=\"stroke-width: 1.8\"> <rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"5\" /> <circle cx=\"12\" cy=\"12\" r=\"4\" /> <\/g> <circle cx=\"17.5\" cy=\"6.5\" r=\"1.1\" fill=\"currentColor\" /> <\/symbol> <symbol id=\"gh\" viewBox=\"0 0 24 24\"> <path fill=\"currentColor\" d=\"M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12\" /> <\/symbol> <symbol id=\"ml\" viewBox=\"0 0 24 24\"> <g class=\"ln\" style=\"stroke-width: 1.8\"> <rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\" /> <path d=\"M3.5 7l8.5 6 8.5-6\" /> <\/g> <\/symbol> <symbol id=\"fb\" viewBox=\"0 0 24 24\"> <path fill=\"currentColor\" d=\"M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z\" /> <\/symbol> <symbol id=\"mo2\" viewBox=\"0 0 24 24\"> <path class=\"ln\" d=\"M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z\" /> <\/symbol> <symbol id=\"su\" viewBox=\"0 0 24 24\"> <g class=\"ln\"> <circle cx=\"12\" cy=\"12\" r=\"4\" /> <path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\" /> <\/g> <\/symbol> <symbol id=\"lm\" viewBox=\"0 0 48 48\"> <path fill=\"currentColor\" d=\"M24 2c2.2 13.8 7.9 19.6 22 22-14.1 2.4-19.8 8.2-22 22-2.2-13.8-7.9-19.6-22-22 14.1-2.4 19.8-8.2 22-22Z\" /> <\/symbol> <symbol id=\"ar\" viewBox=\"0 0 24 24\"><path class=\"ln\" d=\"M5 12h14M13 6l6 6-6 6\" /><\/symbol> <symbol id=\"ur\" viewBox=\"0 0 24 24\"><path class=\"ln\" d=\"M7 17 17 7M8 7h9v9\" /><\/symbol> <symbol id=\"st\" viewBox=\"0 0 24 24\"> <path fill=\"currentColor\" d=\"M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.9l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94L12 2.5z\" /> <\/symbol> <symbol id=\"gb\" viewBox=\"0 0 24 24\"> <g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"> <circle cx=\"12\" cy=\"12\" r=\"9.25\" /> <path d=\"M12 2.75c2.6 2.3 4 5.8 4 9.25s-1.4 6.95-4 9.25c-2.6-2.3-4-5.8-4-9.25s1.4-6.95 4-9.25zM2.75 12h18.5\" /> <\/g> <\/symbol> <symbol id=\"x\" viewBox=\"0 0 24 24\"><path class=\"ln\" d=\"M4 4l16 16M20 4 4 20\" /><\/symbol> <symbol id=\"mn\" viewBox=\"0 0 24 24\"><path class=\"ln\" d=\"M4 6h16M4 12h16M4 18h16\" /><\/symbol> <\/defs> <\/svg>\n  <div class=\"cursor\" id=\"rp-cursor\" aria-hidden=\"true\"><\/div>\n\n  <sc-if value=\"{{loading}}\" hint-placeholder-val=\"{{false}}\">\n    <div id=\"ld\" class=\"{{ldCls}}\">\n      <div class=\"c\"><div class=\"b\"><svg><use href=\"#lm\" /><\/svg>Sunni'S Portfolio<\/div><p>Data meets design, with quiet precision.<\/p><\/div>\n      <div class=\"pg\"><div class=\"tr\"><i style=\"width:{{pct}}%\"><\/i><\/div><div><span>Loading<\/span><b>{{pctText}}<\/b><\/div><\/div>\n    <\/div>\n  <\/sc-if>\n\n  <header class=\"rv in\">\n    <div class=\"shell\">\n      <a class=\"br\" href=\"#home\"><svg><use href=\"#lm\" /><\/svg>Sunni Hanifah<\/a>\n      <nav>\n        <ul>\n          <li><a href=\"#home\">Home<\/a><\/li>\n          <li><a href=\"#about\">About<\/a><\/li>\n          <li><a href=\"#works\">Projects<\/a><\/li>\n          <li><a href=\"#exp\">Experience<\/a><\/li>\n          <li><a href=\"#ach\">Achievements<\/a><\/li>\n          <li><a href=\"#certs\">Certifications<\/a><\/li>\n                  <\/ul>\n      <\/nav>\n      <div class=\"rt\">\n        <a class=\"to3d\" href=\"Main.dc.html\" aria-label=\"Switch to Creative Depot\"><i><\/i><span>Creative<\/span><\/a>\n        \n        <div class=\"chip\"><em>Local time<\/em><b>{{time}}<\/b><em>\u2022<\/em><span style=\"font-weight: 500\">{{date}}<\/span><\/div>\n        <button class=\"mb\" aria-label=\"Toggle dark mode\" onClick=\"{{toggleTheme}}\"><svg><use href=\"{{themeIcon}}\" /><\/svg><\/button>\n        <button class=\"mb\" onClick=\"{{openMenu}}\"><svg style=\"font-size: 0.875rem\"><use href=\"#mn\" /><\/svg><span class=\"hs\">Menu<\/span><\/button>\n      <\/div>\n    <\/div>\n  <\/header>\n\n  <main id=\"main\">\n    <section class=\"hero\" id=\"home\">\n      <div class=\"bg\"><\/div>\n      <div class=\"vg\"><\/div>\n      <div class=\"wm rv\" style=\"--d: 300ms\">SUNNI<\/div>\n      <div class=\"shell hg\">\n        <div class=\"hl\">\n          <span class=\"ey rv\" style=\"--d: 200ms\">Business Statistics @ ITS<\/span>\n          <h1 id=\"h1\" aria-label=\"Hi, I'm Sunni Hanifah, data and design\">\n            <span><i style=\"--d: 250ms\">Hi, I'm Sunni<\/i><\/span><span><i style=\"--d: 370ms\">Hanifah, data<\/i><\/span><span><i style=\"--d: 490ms\">&amp; design<\/i><\/span>\n          <\/h1>\n          <div class=\"tw rv\" style=\"--d: 550ms\"><span>{{typed}}<\/span><i class=\"cur\"><\/i><\/div>\n          <div class=\"rv\" style=\"--d: 600ms; perspective: 1000px\">\n            <div class=\"tilt\" onMouseMove=\"{{tiltMove}}\" onMouseLeave=\"{{tiltLeave}}\">\n              <h3>About Me<\/h3>\n              <p>I'm a Business Statistics student @ ITS bridging statistical modeling, market intelligence, and product strategy.<\/p>\n              <p>My work ranges from running sentiment &amp; topic modeling on large-scale consumer reviews to managing talent operations and leading national-level data competition teams.<\/p>\n              <p>I focus on removing guesswork from business decisions through quantitative research, clear data visualization, and human-centered design.<\/p>\n            <\/div>\n          <\/div>\n          <div class=\"rate rv\" style=\"--d: 650ms\"><span><svg><use href=\"#st\" /><\/svg><svg><use href=\"#st\" /><\/svg><svg><use href=\"#st\" /><\/svg><svg><use href=\"#st\" /><\/svg><svg><use href=\"#st\" /><\/svg><\/span>{{projectCount}} projects online<\/div>\n          <div class=\"cta rv\" style=\"--d: 750ms\">\n            <a class=\"pill dark\" href=\"#home\" onClick=\"{{openModal}}\">Let's Talk<u><svg><use href=\"#ar\" /><\/svg><\/u><\/a><a class=\"pill out np\" href=\"#works\">View Work<\/a>\n          <\/div>\n        <\/div>\n        <div class=\"hr\">\n          <div class=\"hc rv\" style=\"--d: 400ms\">\n            <div id=\"hcard\" onClick=\"{{nextSlide}}\">\n              <div class=\"t\"><svg><use href=\"#lm\" /><\/svg><\/div>\n              <div class=\"p\">\n                <div class=\"{{slCls}}\" id=\"sl\"><small>{{slide.a}}<\/small><span>{{slide.b}}<\/span><\/div>\n                <div class=\"ft\">\n                  <div class=\"dt\"><sc-for list=\"{{dots}}\" as=\"d\" hint-placeholder-count=\"3\"><i class=\"{{d.cls}}\"><\/i><\/sc-for><\/div>\n                  <div style=\"display: flex; gap: 0.25rem\">\n                    <button class=\"ar\" aria-label=\"Previous\" onClick=\"{{prevSlide}}\"><svg style=\"transform: rotate(180deg)\"><use href=\"#ar\" /><\/svg><\/button>\n                    <button class=\"ar\" aria-label=\"Next\" onClick=\"{{nextSlide}}\"><svg><use href=\"#ar\" /><\/svg><\/button>\n                  <\/div>\n                <\/div>\n              <\/div>\n            <\/div>\n          <\/div>\n          <div class=\"pt rv\" style=\"--d: 550ms\">\n            <p>Tools I use<\/p>\n            <ul><li>SPSS<\/li><li>Minitab<\/li><li>R<\/li><li>Python<\/li><li>Power BI<\/li><li>Tableau<\/li><li>Figma<\/li><li>Canva<\/li><\/ul>\n          <\/div>\n        <\/div>\n      <\/div>\n      <div class=\"sb rv\" style=\"--d: 900ms\"><div class=\"shell\"><span>Statistics student<\/span><span>Surabaya, Indonesia<\/span><span>Scroll \u2193<\/span><\/div><\/div>\n    <\/section>\n\n    <section class=\"ab\" id=\"about\">\n      <div class=\"shell\">\n        <div class=\"gl\">\n          <span class=\"ey\">The Student<\/span><svg><use href=\"#gb\" /><\/svg>\n          <div class=\"n rv\"><svg><use href=\"#gb\" /><\/svg><span>D4 Business Statistics at Institut Teknologi Sepuluh Nopember.<\/span><\/div>\n        <\/div>\n        <div class=\"r\">\n          <h2 id=\"ab\" class=\"rv\"><b style=\"--d: 0ms\">We&nbsp;<\/b><b style=\"--d: 35ms\">build&nbsp;<\/b><b style=\"--d: 70ms\">with&nbsp;<\/b><b style=\"--d: 105ms\">data&nbsp;<\/b><b style=\"--d: 140ms\">and&nbsp;<\/b><b style=\"--d: 175ms\">shape&nbsp;<\/b><b style=\"--d: 210ms\">it&nbsp;<\/b><b style=\"--d: 245ms\">with&nbsp;<\/b><b style=\"--d: 280ms\">design:&nbsp;<\/b><em><b style=\"--d: 315ms\">statistics,&nbsp;<\/b><b style=\"--d: 350ms\">dashboards,&nbsp;<\/b><b style=\"--d: 385ms\">and&nbsp;<\/b><b style=\"--d: 420ms\">interfaces&nbsp;<\/b><b style=\"--d: 455ms\">that&nbsp;<\/b><b style=\"--d: 490ms\">turn&nbsp;<\/b><b style=\"--d: 525ms\">raw&nbsp;<\/b><b style=\"--d: 560ms\">numbers&nbsp;<\/b><b style=\"--d: 595ms\">into&nbsp;<\/b><b style=\"--d: 630ms\">clear&nbsp;<\/b><b style=\"--d: 665ms\">decisions.&nbsp;<\/b><\/em><\/h2>\n          <div class=\"f rv\" style=\"--d: 200ms\">\n            <div>\n              <small>Find me online<\/small>\n              <div class=\"so\"><a href=\"https://github.com/sunnihn\" target=\"_blank\" rel=\"noopener\">GH<\/a><a href=\"https://www.linkedin.com/in/sunni-hanifah/\" target=\"_blank\" rel=\"noopener\">in<\/a><a href=\"https://www.instagram.com/sunnihn/\" target=\"_blank\" rel=\"noopener\">IG<\/a><\/div>\n            <\/div>\n            <a class=\"pill out\" href=\"mailto:sunnihanifah6@gmail.com\">Email me<u><svg><use href=\"#ar\" /><\/svg><\/u><\/a>\n          <\/div>\n        <\/div>\n      <\/div>\n    <\/section>\n\n    <section class=\"cb\">\n      <ul class=\"shell\">\n        <li class=\"rv\"><div class=\"v1\">Data<\/div><\/li>\n        <li class=\"rv\" style=\"--d: 120ms\"><div class=\"v2\">Design<\/div><\/li>\n        <li class=\"rv\" style=\"--d: 240ms\"><div class=\"v3\"><svg><use href=\"#ar\" /><\/svg><\/div><\/li>\n        <li class=\"rv\" style=\"--d: 360ms\"><div class=\"v4\">Impact<\/div><\/li>\n      <\/ul>\n    <\/section>\n\n    <section class=\"pf\" id=\"works\">\n      <div class=\"shell\">\n        <div class=\"cen rv\"><span class=\"ey bd\">Projects<\/span><\/div>\n        <h2 class=\"cen rv\" style=\"--d: 120ms; width: fit-content; margin-inline: auto; margin-block: 1.25rem 3rem\">Selected Work<\/h2>\n        <ul class=\"cds\">\n          <sc-for list=\"{{cards}}\" as=\"c\" hint-placeholder-count=\"6\">\n            <li class=\"rv\" style=\"--d: {{c.d}}\"><div class=\"{{c.cls}}\" onClick=\"{{c.toggle}}\"><div class=\"m\"><span>{{c.meta}}<\/span><u><svg><use href=\"#ur\" /><\/svg><\/u><\/div><div class=\"{{c.wcls}}\"><sc-if value=\"{{c.hasImg}}\" hint-placeholder-val=\"{{false}}\"><img src=\"{{c.img}}\" alt=\"\"><\/sc-if><sc-if value=\"{{c.noImg}}\" hint-placeholder-val=\"{{true}}\"><svg><use href=\"#lm\" /><\/svg><\/sc-if><\/div><div class=\"bt\"><h3>{{c.title}}<\/h3><p>{{c.desc}}<\/p><div class=\"tg\"><sc-for list=\"{{c.tags}}\" as=\"t\" hint-placeholder-count=\"3\"><span>{{t}}<\/span><\/sc-for><\/div><sc-if value=\"{{c.open}}\" hint-placeholder-val=\"{{false}}\"><div class=\"star\"><sc-for list=\"{{c.star}}\" as=\"s\" hint-placeholder-count=\"4\"><div><i>{{s.l}}<\/i><b>{{s.k}}<\/b><p>{{s.v}}<\/p><\/div><\/sc-for><\/div><sc-if value=\"{{c.hasUrl}}\" hint-placeholder-val=\"{{true}}\"><a class=\"pill out np\" href=\"{{c.url}}\" target=\"_blank\" rel=\"noopener\" onClick=\"{{c.stop}}\">Open project<\/a><\/sc-if><\/sc-if><\/div><\/div><\/li>\n          <\/sc-for>\n        <\/ul>\n      <\/div>\n    <\/section>\n\n    <section class=\"sv\" id=\"exp\">\n      <div class=\"shell\">\n        <span class=\"ey rv\">Experience<\/span>\n        <h2 class=\"rv\" style=\"--d: 120ms\">What I've done &amp; do now<\/h2>\n        <ul>\n          <sc-for list=\"{{rows}}\" as=\"r\" hint-placeholder-count=\"6\">\n            <li class=\"rv\" style=\"--d: {{r.d}}\"><div class=\"{{r.cls}}\" onClick=\"{{r.toggle}}\"><span>{{r.n}}<\/span><h3>{{r.a}}<small>{{r.b}}<\/small><\/h3><p>{{r.c}}<\/p><u><svg><use href=\"#ur\" /><\/svg><\/u><\/div><sc-if value=\"{{r.open}}\" hint-placeholder-val=\"{{false}}\"><div class=\"star\"><sc-for list=\"{{r.star}}\" as=\"s\" hint-placeholder-count=\"4\"><div><i>{{s.l}}<\/i><b>{{s.k}}<\/b><p>{{s.v}}<\/p><\/div><\/sc-for><\/div><\/sc-if><\/li>\n          <\/sc-for>\n        <\/ul>\n      <\/div>\n    <\/section>\n\n    <section class=\"sv\" id=\"ach\">\n      <div class=\"shell\">\n        <span class=\"ey rv\">Achievements<\/span>\n        <h2 class=\"rv\" style=\"--d: 120ms\">Proof through action<\/h2>\n        <ul>\n          <sc-for list=\"{{ach}}\" as=\"r\" hint-placeholder-count=\"6\">\n            <li class=\"rv\" style=\"--d: {{r.d}}\"><div class=\"{{r.cls}}\" onClick=\"{{r.toggle}}\"><span>{{r.n}}<\/span><h3>{{r.a}}<small>{{r.b}}<\/small><\/h3><p>{{r.c}}<\/p><u><svg><use href=\"#ur\" /><\/svg><\/u><\/div><sc-if value=\"{{r.open}}\" hint-placeholder-val=\"{{false}}\"><div class=\"star\"><sc-for list=\"{{r.star}}\" as=\"s\" hint-placeholder-count=\"4\"><div><i>{{s.l}}<\/i><b>{{s.k}}<\/b><p>{{s.v}}<\/p><\/div><\/sc-for><\/div><\/sc-if><\/li>\n          <\/sc-for>\n        <\/ul>\n      <\/div>\n    <\/section>\n\n    <section class=\"sv\" id=\"certs\">\n      <div class=\"shell\">\n        <span class=\"ey rv\">Certifications<\/span>\n        <h2 class=\"rv\" style=\"--d: 120ms\">Credentials<\/h2>\n        <ul>\n          <sc-for list=\"{{certs}}\" as=\"r\" hint-placeholder-count=\"5\">\n            <li class=\"rv\"><div class=\"rw dg\"><span>&#9679;<\/span><h3>{{r.t}}<small>{{r.d}}<\/small><\/h3><\/div><\/li>\n          <\/sc-for>\n        <\/ul>\n      <\/div>\n    <\/section>\n\n    <section class=\"st\">\n      <div class=\"shell\">\n        <div class=\"pn rv\">\n          <span class=\"ey l\">By the numbers<\/span>\n          <h2>Proof in the work, not the words.<\/h2>\n          <ul class=\"sg\">\n            <li class=\"rv\"><b>16+<\/b><p>Competition teams mentored<\/p><\/li>\n            <li class=\"rv\" style=\"--d: 90ms\"><b>4<\/b><p>Courses taught as TA<\/p><\/li>\n            <li class=\"rv\" style=\"--d: 180ms\"><b>10+<\/b><p>Competition placements<\/p><\/li>\n            <li class=\"rv\" style=\"--d: 270ms\"><b>5<\/b><p>Certifications<\/p><\/li>\n          <\/ul>\n        <\/div>\n      <\/div>\n    <\/section>\n\n    <section class=\"cn\" id=\"social-media\">\n      <div class=\"shell\">\n        <span class=\"ey rv\">Connect<\/span>\n        <h2 class=\"rv\" style=\"--d: 120ms\">Let's Connect<\/h2>\n        <p class=\"rv\" style=\"--d: 200ms\">u can reach up me or just to say hello!<\/p>\n        <div class=\"sc\">\n          <a class=\"si bh z1\" href=\"https://www.linkedin.com/in/sunni-hanifah/\" target=\"_blank\" rel=\"noopener\" aria-label=\"LinkedIn\"><svg><use href=\"#li\" /><\/svg><\/a><a class=\"si yh z2\" href=\"https://www.instagram.com/sunnihn/\" target=\"_blank\" rel=\"noopener\" aria-label=\"Instagram\"><svg><use href=\"#ig\" /><\/svg><\/a><a class=\"si bh z3\" href=\"https://github.com/sunnihn\" target=\"_blank\" rel=\"noopener\" aria-label=\"GitHub\"><svg><use href=\"#gh\" /><\/svg><\/a><a class=\"si yh z4\" href=\"mailto:sunnihanifah6@gmail.com\" aria-label=\"Email\"><svg><use href=\"#ml\" /><\/svg><\/a><a class=\"si bh z5\" href=\"https://www.facebook.com/sunni.hanifah\" target=\"_blank\" rel=\"noopener\" aria-label=\"Facebook\"><svg><use href=\"#fb\" /><\/svg><\/a>\n        <\/div>\n      <\/div>\n    <\/section>\n  <\/main>\n\n  <footer>\n    <div class=\"shell\">\n      <div class=\"fc\">\n        <h2 class=\"rv\">Have a project in mind? Let's talk.<\/h2>\n        <a class=\"pill light rv\" href=\"#home\" onClick=\"{{openModal}}\">Start a project<u><svg><use href=\"#ur\" /><\/svg><\/u><\/a>\n      <\/div>\n      <div class=\"cl\">\n        <div><div class=\"br\"><svg style=\"color: #fff\"><use href=\"#lm\" /><\/svg>Sunni Hanifah<\/div><p>Business Statistics student blending data analysis with creative problem-solving.<\/p><\/div>\n        <div><h4>Sections<\/h4><ul><li><a href=\"#about\">About<\/a><\/li><li><a href=\"#works\">Projects<\/a><\/li><li><a href=\"#exp\">Experience<\/a><\/li><li><a href=\"Main.dc.html\">3D Mode<\/a><\/li><\/ul><\/div>\n        <div><h4>Tools<\/h4><ul><li><a href=\"#works\">Statistics<\/a><\/li><li><a href=\"#works\">Data Viz<\/a><\/li><li><a href=\"#works\">Programming<\/a><\/li><li><a href=\"#works\">Design<\/a><\/li><\/ul><\/div>\n        <div><h4>Social<\/h4><ul><li><a href=\"https://www.linkedin.com/in/sunni-hanifah/\" target=\"_blank\" rel=\"noopener\">LinkedIn<\/a><\/li><li><a href=\"https://github.com/sunnihn\" target=\"_blank\" rel=\"noopener\">GitHub<\/a><\/li><li><a href=\"https://www.instagram.com/sunnihn/\" target=\"_blank\" rel=\"noopener\">Instagram<\/a><\/li><li><a href=\"https://www.facebook.com/sunni.hanifah\" target=\"_blank\" rel=\"noopener\">Facebook<\/a><\/li><\/ul><\/div>\n      <\/div>\n      <div class=\"lg\"><span>\u00a9 2025 Sunni Hanifah. All rights reserved.<\/span><span>sunnihanifah6@gmail.com<\/span><\/div>\n    <\/div>\n    <div class=\"fw\">SUNNI<\/div>\n  <\/footer>\n\n  <div id=\"nm\" class=\"{{menuCls}}\" aria-hidden=\"true\">\n    <div class=\"shell tb\">\n      <div class=\"br\"><svg><use href=\"#lm\" /><\/svg>Sunni Hanifah<\/div>\n      <button class=\"cx\" onClick=\"{{closeMenu}}\"><svg style=\"font-size: 0.875rem\"><use href=\"#x\" /><\/svg>Close<\/button>\n    <\/div>\n    <div class=\"shell nv\">\n      <ul>\n        <sc-for list=\"{{menuItems}}\" as=\"m\" hint-placeholder-count=\"6\">\n          <li><a class=\"menu-a\" href=\"{{m.href}}\" onClick=\"{{closeMenu}}\"><small>{{m.n}}<\/small><span>{{m.label}}<\/span><\/a><\/li>\n        <\/sc-for>\n      <\/ul>\n    <\/div>\n    <div class=\"shell bb\"><span>Local time \u2014 {{time}}<\/span><button onClick=\"{{openModal}}\">Start a project \u2192<\/button><\/div>\n  <\/div>\n\n  <div id=\"md\" class=\"{{modalCls}}\" role=\"dialog\" aria-modal=\"true\" onClick=\"{{modalBg}}\">\n    <div class=\"pl\">\n      <button class=\"x\" aria-label=\"Close\" onClick=\"{{closeModal}}\"><svg><use href=\"#x\" /><\/svg><\/button>\n      <span class=\"ey\">Start a project<\/span>\n      <h2>Tell me what you're building.<\/h2>\n      <p>Send a few words about your idea, timeline and goals.<\/p>\n      <span class=\"mail-big\">sunnihanifah6@gmail.com<\/span>\n      <a class=\"pill dark\" href=\"mailto:sunnihanifah6@gmail.com\">Send email<u><svg><use href=\"#ur\" /><\/svg><\/u><\/a>\n    <\/div>\n  <\/div>\n<\/div>\n" };
+const C = { depot: "\n/* ===== BASE ===== */\nbody{margin:0}\n*{box-sizing:border-box}\n.root{position:relative;width:100%;min-height:100%;overflow-x:hidden;font-family:'Poppins',system-ui,sans-serif;color:#fff;-webkit-font-smoothing:antialiased}\n.root button{font-family:inherit;cursor:pointer}\n.root a{color:inherit}\n.root :focus-visible{outline:3px solid #FFD23F;outline-offset:2px}\n.disp{font-family:'Poppins','Poppins',sans-serif}\n.acc{font-family:'Times New Roman',Times,serif;font-style:italic;font-weight:700}\n@media (prefers-reduced-motion:reduce){.root *{transition:none!important;animation:none!important}}\n\n/* ===== LOADER ===== */\n.loader{position:absolute;inset:0;z-index:200;background:#0B3E8C;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer}\n.loader b{font:800 clamp(34px,7vw,72px)/1 'Poppins',sans-serif;letter-spacing:-.04em}\n.loader span{font-size:12px;letter-spacing:.2em;opacity:0;animation:fadeUp .4s forwards}\n.loader span:nth-of-type(1){animation-delay:.15s}.loader span:nth-of-type(2){animation-delay:.55s}.loader span:nth-of-type(3){animation-delay:.95s;color:#FFD23F}\n.bar{width:220px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden}\n.bar i{display:block;height:100%;background:#FFD23F;width:0;animation:fill 1.5s ease-out forwards}\n@keyframes fill{to{width:100%}}\n@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}\n\n/* ===== NAV ===== */\n.nav{position:relative;z-index:90;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 clamp(12px,3vw,40px);backdrop-filter:blur(10px)}\n.brand{display:flex;align-items:center;gap:10px;background:none;border:0;color:inherit;padding:0;height:44px}\n.logo{width:38px;height:38px;border-radius:10px;background:#FFD23F;color:#0B1634;display:grid;place-items:center;font:800 20px/1 'Poppins',sans-serif}\n.bt{display:flex;flex-direction:column;text-align:left;line-height:1.05}\n.bt b{font:800 18px/1 'Poppins',sans-serif;letter-spacing:-.02em}\n.bt small{font-size:11px;opacity:.85;margin-top:3px}\n.links{display:flex;gap:4px}\n.lk{background:none;border:0;color:inherit;font-weight:600;font-size:14px;padding:10px 14px;border-radius:999px;min-height:44px}\n.lk:hover{background:rgba(255,255,255,.14)}\n.lk.on{background:#fff;color:#0B2A6B}\n.ctl{display:flex;align-items:center;gap:10px}\n.talk{text-decoration:none;font-weight:700;font-size:14px;background:#FFD23F;color:#0B1634!important;padding:11px 16px;border-radius:999px;min-height:44px;display:inline-flex;align-items:center}\n.seg{display:flex;padding:3px;border-radius:999px;background:rgba(255,255,255,.16)}\n.seg button{border:0;background:none;color:inherit;font-weight:600;font-size:13px;padding:0 12px;min-height:38px;border-radius:999px}\n.seg button.on{background:#fff;color:#0B2A6B}\n.zip{text-decoration:none;font-weight:700;font-size:13px;color:#fff;border:2px solid rgba(255,255,255,.55);padding:0 14px;border-radius:999px;min-height:44px;display:inline-flex;align-items:center;white-space:nowrap}\n.zip:hover{background:rgba(255,255,255,.18)}\n.seg .rec{display:inline-flex;align-items:center;text-decoration:none;font-weight:600;font-size:13px;padding:0 12px;min-height:38px;border-radius:999px}\n.seg .rec:hover{background:rgba(255,255,255,.2)}\n.sw{position:relative;width:68px;height:38px;border-radius:999px;border:2px solid rgba(255,255,255,.55);background:rgba(255,255,255,.16);padding:0;flex:none}\n.sw svg{position:absolute;top:8px;width:18px;height:18px}\n.sw .s1{left:9px}.sw .s2{right:9px}\n.knob{position:absolute;top:3px;width:28px;height:28px;border-radius:50%;background:#FFD23F;transition:left .35s cubic-bezier(.34,1.4,.5,1)}\n.m .nav{flex-wrap:wrap;align-content:flex-start}\n.m .brand,.m .ctl{height:72px}\n.m .links{order:3;width:100%;overflow-x:auto;height:44px;gap:2px}\n.m .lk{padding:8px 12px;white-space:nowrap}\n.m .talk{display:none}\n.m .seg button,.m .seg .rec{padding:0 9px;font-size:12px}\n.m .bt small{display:none}\n\n/* ===== STAGE / 3D DEPOT ===== */\n.stage{position:relative;overflow:hidden;perspective:1800px;perspective-origin:50% 30%}\n.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px);background-size:44px 44px;pointer-events:none}\n.bigword{position:absolute;left:0;right:0;text-align:center;font:800 clamp(100px,20vw,350px)/.9 'Poppins',sans-serif;letter-spacing:-.05em;color:#fff;opacity:.22;pointer-events:none;transform:translateY(-50%)}\n.subword{position:absolute;left:0;right:0;text-align:center;font:600 12px/1 'Poppins',sans-serif;letter-spacing:.32em;opacity:.8;pointer-events:none}\n.rail{position:absolute;left:0;right:0;top:14px;height:16px;border-radius:8px;background:linear-gradient(#fff,#c9d3e2);box-shadow:0 6px 14px rgba(10,60,160,.35);z-index:55}\n.rail::after{content:'';position:absolute;left:0;right:0;top:7px;border-top:2px dashed rgba(100,120,150,.55)}\n.crane{position:absolute;top:0;width:0;height:0;z-index:60;pointer-events:none;transition:left .65s cubic-bezier(.55,0,.25,1)}\n.car{position:absolute;left:-34px;top:22px;width:68px;height:34px;border-radius:10px;background:linear-gradient(#fff,#dfe6f0);box-shadow:0 4px 10px rgba(0,30,90,.35)}\n.wh{position:absolute;top:-6px;width:12px;height:12px;border-radius:50%;background:#8d99ab;border:2px solid #fff}\n.w1{left:10px}.w2{right:10px}\n.rod{position:absolute;left:-4px;top:56px;width:8px;background:linear-gradient(90deg,#8d99ab,#fff,#8d99ab);transition:height .65s cubic-bezier(.55,0,.25,1)}\n.head{position:absolute;left:-36px;width:72px;height:34px;border-radius:10px;background:linear-gradient(#fff,#d6deea);box-shadow:0 5px 12px rgba(0,30,90,.4);transition:top .65s cubic-bezier(.55,0,.25,1)}\n.fg{position:absolute;top:24px;height:8px;border-radius:4px;background:linear-gradient(#fff,#c4cedd);transition:width .4s cubic-bezier(.55,0,.25,1),transform .4s cubic-bezier(.55,0,.25,1)}\n.fg i{position:absolute;top:0;width:8px;height:28px;border-radius:3px;background:linear-gradient(90deg,#fff,#c4cedd)}\n.fgl{right:calc(100% - 8px);transform-origin:right center}.fgl i{left:0}\n.fgr{left:calc(100% - 8px);transform-origin:left center}.fgr i{right:0}\n\n/* container cuboid: six faces built from translate / rotate */\n.cb{position:absolute;transform-style:preserve-3d;transition:left .65s cubic-bezier(.55,0,.25,1),top .65s cubic-bezier(.55,0,.25,1),width .65s cubic-bezier(.55,0,.25,1),height .65s cubic-bezier(.55,0,.25,1),transform .65s cubic-bezier(.55,0,.25,1)}\n.fc{position:absolute;background:repeating-linear-gradient(90deg,rgba(255,255,255,.13) 0 3px,rgba(0,0,0,.15) 3px 6px),var(--c)}\n.fb{inset:0;transform:translateZ(calc(var(--d) * -1));filter:brightness(.6)}\n.fl{left:0;top:0;height:100%;width:var(--d);transform-origin:left center;transform:rotateY(90deg);filter:brightness(.72)}\n.fr{right:0;top:0;height:100%;width:var(--d);transform-origin:right center;transform:rotateY(-90deg);filter:brightness(.78)}\n.fu{left:0;top:0;width:100%;height:var(--d);transform-origin:center top;transform:rotateX(-90deg);filter:brightness(1.18)}\n.fd{left:0;bottom:0;width:100%;height:var(--d);transform-origin:center bottom;transform:rotateX(90deg);filter:brightness(.5)}\n.ft{inset:0;transform-style:preserve-3d;border-radius:3px;border:2px solid rgba(0,0,0,.35);box-shadow:0 26px 30px -14px rgba(0,30,90,.55),var(--glow)}\n.inner{position:absolute;inset:8px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 4px,transparent 4px 8px),linear-gradient(160deg,var(--navy),var(--navy2))}\n.door{position:absolute;top:8px;bottom:8px;width:calc(50% - 8px);background:repeating-linear-gradient(90deg,rgba(255,255,255,.14) 0 3px,rgba(0,0,0,.16) 3px 6px),var(--c);border:1px solid rgba(0,0,0,.4);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}\n.dl{left:8px;transform-origin:left center}.dr{right:8px;transform-origin:right center}\n.hg{position:absolute;width:4px;height:12%;background:#2a2f3a;border-radius:2px}\n.dl .hg{left:-2px}.dr .hg{right:-2px}.h1{top:12%}.h2{bottom:12%}\n.hd{position:absolute;top:30%;bottom:30%;width:3px;background:#2a2f3a;opacity:.7}\n.dl .hd{right:6%}.dr .hd{left:6%}\n.lab{position:absolute;left:0;right:0;top:50%;transform:translateZ(2px) translateY(-50%);text-align:center;pointer-events:none;line-height:1.05;text-shadow:0 1px 0 rgba(0,0,0,.25);font-family:'Poppins',sans-serif}\n.lab b{display:block;font-weight:800;letter-spacing:-.02em}\n.lab span{display:block;font-weight:700;letter-spacing:.04em;font-size:.62em}\n.lab .tag{position:absolute;left:8%;top:-120%;font-size:.55em;opacity:.85}\n.hit{position:absolute;inset:0;border:0;background:transparent;transform:translateZ(3px);border-radius:3px}\n.hit:hover{background:rgba(255,255,255,.14)}\n\n/* ===== CONTENT HOST ===== */\n.host{--tx:#fff;--tx2:#C3D0F0;--card:rgba(255,255,255,.07);--line:rgba(255,255,255,.16);--acc:#FFD23F;color:var(--tx)}\n.host-x{position:absolute;z-index:70;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#4b6bb8 transparent}\n.sec{padding:clamp(16px,2.4vw,30px)}\n.host-x .sec{min-height:100%}\n.cimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}\n.cover::after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(0,0,0,.55))}\n.cover b,.cover span{z-index:2}\n.sec-r{background:var(--card);border:1px solid var(--line);border-radius:20px;margin-bottom:24px;position:relative;overflow:hidden}\n.sec-r::before{content:'';position:absolute;left:0;right:0;top:0;height:6px;background:var(--c)}\n.kick{font-size:13px;letter-spacing:.22em;font-weight:700;color:var(--acc)}\n.h2{margin:6px 0 14px;font:700 clamp(26px,3.6vw,44px)/1.1 'Poppins',sans-serif;letter-spacing:-.02em;outline:none}\n.h2 .acc{font-size:1.12em;color:var(--acc);letter-spacing:0}\n.p{margin:0 0 14px;font-size:clamp(17px,1.6vw,21px);line-height:1.5;color:var(--tx2)}\n.p.lead{color:var(--tx);font-size:clamp(20px,2.1vw,28px);font-weight:500;line-height:1.35}\n.row{display:flex;flex-wrap:wrap;gap:10px}\n.chip{border:1px solid var(--line);background:var(--card);color:var(--tx);border-radius:999px;padding:10px 18px;font-size:15px;font-weight:600;min-height:44px;display:inline-flex;align-items:center}\nbutton.chip:hover{border-color:var(--acc)}\n.chip.on{background:var(--acc);color:#0B1634;border-color:var(--acc)}\n.tiny{font-size:12px;padding:5px 10px;min-height:0;color:var(--tx2);font-weight:500}\n.btn{display:inline-flex;align-items:center;gap:6px;border:0;text-decoration:none;font-weight:700;font-size:16px;border-radius:999px;padding:13px 24px;min-height:48px;background:#FFD23F;color:#0B1634!important}\n.btn.ghost{background:transparent;color:var(--tx)!important;border:1.5px solid var(--line)}\n.grid3{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}\n.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}\n.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}\n.card h3,.card h4{margin:0 0 6px;font:700 20px/1.2 'Poppins',sans-serif}\n.card .sm{margin:0;font-size:15.5px;line-height:1.5;color:var(--tx2)}\n.lbl{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--acc);margin-bottom:4px}\n.facts{display:flex;flex-wrap:wrap;gap:8px 26px;margin:16px 0;font-size:17px;color:var(--tx2)}\n.facts b{color:var(--tx)}\n.cover{height:140px;border-radius:12px;margin-bottom:12px;position:relative;overflow:hidden;background:repeating-linear-gradient(90deg,rgba(255,255,255,.14) 0 3px,rgba(0,0,0,.14) 3px 6px),var(--c);color:#fff}\n.cover b{position:absolute;left:12px;bottom:6px;font:800 44px/1 'Poppins',sans-serif;letter-spacing:-.04em}\n.cover span{position:absolute;right:12px;top:10px;font-size:10px;letter-spacing:.16em;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.4)}\n.tl{position:relative;margin:6px 0 0;padding-left:22px;border-left:2px dashed var(--line)}\n.tli{position:relative;margin-bottom:12px}\n.tli::before{content:'';position:absolute;left:-30px;top:18px;width:12px;height:12px;border-radius:50%;background:var(--acc)}\n.tlb{width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;color:var(--tx);display:flex;justify-content:space-between;gap:12px;align-items:flex-start;min-height:44px}\n.tlb:hover{border-color:var(--acc)}\n.tlb b{display:block;font:700 20px/1.2 'Poppins',sans-serif}\n.tlb small{display:block;color:var(--tx2);font-size:15px;margin-top:3px}\n.tlb em{font-style:normal;font-size:12px;color:var(--tx2);white-space:nowrap}\n.tlx{padding:12px 16px 4px;color:var(--tx2);font-size:16px;line-height:1.55}\n.tlx ul{margin:0 0 10px;padding-left:18px}.tlx li{margin-bottom:4px}\n.pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;padding:3px 9px;border-radius:999px;background:var(--line);color:var(--tx);margin:0 6px 6px 0}\n.trophy{font:800 11px/1 'Poppins',sans-serif;letter-spacing:.14em;color:#0B1634;background:#FFD23F;display:inline-block;padding:5px 9px;border-radius:6px;margin-bottom:10px}\n.step{counter-increment:s}\n.num{font:800 28px/1 'Poppins',sans-serif;color:var(--acc)}\n.quote{border-left:4px solid var(--acc);padding:4px 0 4px 16px;margin:16px 0;font:italic 700 clamp(18px,2.2vw,24px)/1.35 'Times New Roman',Times,serif;color:var(--tx);max-width:60ch}\n.pil{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap;margin-top:8px}\n.pil button{flex:1 1 200px;text-align:left;background:var(--card);border:1.5px solid var(--line);color:var(--tx);border-radius:14px;padding:14px;min-height:44px}\n.pil button.on{border-color:var(--acc);box-shadow:0 0 0 3px rgba(255,210,63,.18)}\n.pil b{display:block;font:800 18px/1 'Poppins',sans-serif;margin-bottom:6px}\n.pil span{font-size:15.5px;color:var(--tx2);line-height:1.45}\n.flow path{stroke-dasharray:6 8;animation:dash 1.6s linear infinite}\n@keyframes dash{to{stroke-dashoffset:-28}}\n.link{font-weight:600;text-decoration:underline;text-underline-offset:3px}\n.mail{font:800 clamp(22px,3.4vw,38px)/1.1 'Poppins',sans-serif;letter-spacing:-.02em;color:var(--acc)!important;word-break:break-all}\n\n/* ===== MOTION BACKGROUND / TYPEWRITER / SWIPE ROW ===== */\n.blobs{position:absolute;inset:0;overflow:hidden;pointer-events:none}\n.blob{position:absolute;border-radius:50%;filter:blur(60px);animation:float 14s ease-in-out infinite alternate}\n.b1{width:420px;height:420px;left:-80px;top:80px;background:#7C5CFF}\n.b2{width:380px;height:380px;right:-60px;top:260px;background:#00E0FF;animation-delay:-5s}\n.b3{width:460px;height:460px;left:35%;bottom:-120px;background:#FF8A4C;animation-delay:-9s}\n@keyframes float{to{transform:translate(70px,-50px) scale(1.18)}}\n.typed{margin:4px 0 12px;font:600 clamp(22px,3vw,36px)/1.25 'Poppins',sans-serif;color:var(--acc);min-height:1.4em}\n.typed::after{content:'|';margin-left:2px;animation:blink 1s steps(1) infinite}\n@keyframes blink{50%{opacity:0}}\n.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}\n.scroller{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:12px;cursor:grab;scrollbar-width:thin;scrollbar-color:#4b6bb8 transparent}\n.scroller>*{flex:0 0 min(290px,82%);scroll-snap-align:start}\n.hint{font-size:12px;color:var(--tx2);margin:0 0 8px;letter-spacing:.08em}\n\n/* ===== CUTE CURSOR (from the portfolio zip) ===== */\n.cursor{position:fixed;left:-100px;top:-100px;width:32px;height:32px;border-radius:50%;background:var(--cc,#fffb00);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .1s,width .3s,height .3s,background .3s;display:none}\n.cursor:before{content:\"\";position:absolute;top:50%;left:50%;width:calc(100% + 14px);height:calc(100% + 14px);background:var(--co,#ffa500);border-radius:50%;z-index:-1;clip-path:polygon(0 20%,10% 15%,20% 20%,30% 10%,40% 20%,50% 5%,60% 20%,70% 15%,80% 25%,90% 10%,100% 20%,90% 30%,80% 25%,70% 35%,60% 30%,50% 35%,40% 30%,30% 40%,20% 30%,10% 35%,0 30%);animation:ro 4s infinite linear}\n.cursor:after{content:\"\";position:absolute;top:50%;left:50%;width:180%;height:180%;background:radial-gradient(circle,var(--cc,#fffb00),transparent 60%);transform:translate(-50%,-50%);border-radius:50%;opacity:.3;z-index:-2}\n.cursor.h{transform:translate(-50%,-50%) scale(1.25)}\n.cursor.h:before{animation-duration:1s}\n@keyframes ro{to{transform:translate(-50%,-50%) rotate(360deg)}}\n@media (hover:hover) and (pointer:fine){.root,.root *{cursor:none!important}.cursor{display:block}}\n\n/* ===== MODAL ===== */\n.modal{position:fixed;inset:0;z-index:150;background:rgba(3,10,30,.72);display:flex;align-items:center;justify-content:center;padding:16px}\n.mbox{--tx:#fff;--tx2:#C3D0F0;--card:rgba(255,255,255,.07);--line:rgba(255,255,255,.18);--acc:#FFD23F;color:var(--tx);width:min(860px,100%);max-height:92%;overflow-y:auto;background:#0B1634;border-radius:22px;border:1px solid var(--line);padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.5)}\n.mx{float:right;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:#fff;font-size:20px}\n.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 16px;margin:0}\n.kv dt{font-size:12px;letter-spacing:.1em;font-weight:700;color:var(--acc);padding-top:3px}\n.kv dd{margin:0 0 10px;font-size:15px;line-height:1.55;color:var(--tx2)}\n@media (max-width:560px){.kv{grid-template-columns:1fr}.kv dd{margin-bottom:12px}}\n", rec: "\n.rp, .rp *{\n        box-sizing: border-box;\n        margin: 0;\n        padding: 0;\n      }\n.rp{\n        --t: 17, 17, 17;\n        --fg: #111;\n        --bg: #fff;\n        --ink: #1a1a1a;\n        --line: #e6e6e6;\n        --sf: #f8fafc;\n        --ac: #0066cc;\n        --a1: #fffb00;\n        --a2: #004a99;\n      }\n.rp{\n        background: var(--bg);\n        color: var(--fg);\n        transition:\n          background 0.5s,\n          color 0.5s;\n        font-family: \"Onest\", sans-serif;\n        overflow-x: hidden;\n      }\n.rp a{\n        color: inherit;\n        text-decoration: none;\n      }\n.rp button{\n        font: inherit;\n        color: inherit;\n        background: none;\n        border: none;\n        cursor: pointer;\n      }\n.rp ul{\n        list-style: none;\n      }\n.rp .shell{\n        max-width: 88rem;\n        margin-inline: auto;\n        padding-inline: 1.25rem;\n      }\n@media (min-width: 640px){.rp .shell{\n          padding-inline: 2rem;\n        }}\n.rp svg{\n        width: 1em;\n        height: 1em;\n        display: block;\n      }\n.rp .ln{\n        fill: none;\n        stroke: currentColor;\n        stroke-width: 2;\n        stroke-linecap: round;\n        stroke-linejoin: round;\n      }\n.rp.dark{\n        --t: 245, 245, 245;\n        --fg: #f5f5f5;\n        --bg: #1a1a1a;\n        --ink: #333;\n        --line: #444;\n        --sf: #2a2a2a;\n      }\n.rp.dark .hero{\n        background: #222;\n      }\n.rp.dark .bg{\n        background:\n          radial-gradient(60% 70% at 25% 30%, #1f3a5c, transparent),\n          radial-gradient(50% 60% at 80% 70%, #2b2b2b, transparent),\n          linear-gradient(135deg, #262626, #1a1a1a);\n      }\n.rp.dark .vg{\n        background: linear-gradient(rgba(26, 26, 26, 0.35), transparent, rgba(26, 26, 26, 0.35));\n      }\n.rp.dark .wm{\n        color: rgba(255, 255, 255, 0.08);\n      }\n.rp.dark .chip, .rp.dark .mb{\n        background: rgba(26, 26, 26, 0.4);\n        border-color: rgba(255, 255, 255, 0.15);\n      }\n.rp.dark .mb:hover{\n        background: rgba(51, 51, 51, 0.7);\n      }\n.rp.dark .hc{\n        background: rgba(40, 40, 40, 0.7);\n        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);\n      }\n.rp.dark .hc .p{\n        background: rgba(51, 51, 51, 0.7);\n      }\n.rp.dark .ar{\n        background: #444;\n      }\n.rp.dark .tilt, .rp.dark .pl{\n        background: #2a2a2a;\n      }\n.rp.dark .pl input, .rp.dark .pl textarea{\n        background: #1a1a1a;\n      }\n.rp.dark .pl input:focus, .rp.dark .pl textarea:focus{\n        background: #222;\n      }\n.rp.dark .pill.dark u{\n        background: #fff;\n        color: #1a1a1a;\n      }\n.rp.dark .v4{\n        background: rgba(42, 42, 42, 0.6);\n      }\n.rp.dark .ph{\n        color: #fff;\n      }\n.rp #th svg{\n        font-size: 0.875rem;\n      }\n.rp{\n        --rh: 212;\n      }\n.rp.dark{\n        --rh: 290;\n        --cc: #f5f5f5;\n        --co: #aaa;\n      }\n.rp{\n        --cc: var(--a1);\n        --co: #ffa500;\n      }\n.rp .cursor{\n        position: fixed;\n        left: -100px;\n        top: -100px;\n        width: 32px;\n        height: 32px;\n        border-radius: 50%;\n        background: var(--cc);\n        pointer-events: none;\n        z-index: 9999;\n        transform: translate(-50%, -50%);\n        transition:\n          transform 0.1s,\n          width 0.3s,\n          height 0.3s,\n          background 0.3s;\n        display: none;\n      }\n.rp .cursor:before{\n        content: \"\";\n        position: absolute;\n        top: 50%;\n        left: 50%;\n        width: calc(100% + 14px);\n        height: calc(100% + 14px);\n        background: var(--co);\n        border-radius: 50%;\n        z-index: -1;\n        clip-path: polygon(\n          0 20%,\n          10% 15%,\n          20% 20%,\n          30% 10%,\n          40% 20%,\n          50% 5%,\n          60% 20%,\n          70% 15%,\n          80% 25%,\n          90% 10%,\n          100% 20%,\n          90% 30%,\n          80% 25%,\n          70% 35%,\n          60% 30%,\n          50% 35%,\n          40% 30%,\n          30% 40%,\n          20% 30%,\n          10% 35%,\n          0 30%\n        );\n        animation: ro 4s infinite linear;\n      }\n.rp .cursor:after{\n        content: \"\";\n        position: absolute;\n        top: 50%;\n        left: 50%;\n        width: 180%;\n        height: 180%;\n        background: radial-gradient(circle, var(--cc), transparent 60%);\n        transform: translate(-50%, -50%);\n        border-radius: 50%;\n        opacity: 0.3;\n        z-index: -2;\n      }\n.rp .cursor.h{\n        transform: translate(-50%, -50%) scale(1.2);\n      }\n.rp .cursor.h:before{\n        animation-duration: 1s;\n      }\n.rp .cursor.b{\n        background: var(--ac);\n      }\n@keyframes ro {\n        to {\n          transform: translate(-50%, -50%) rotate(360deg);\n        }\n      }\n@media (hover: hover) and (pointer: fine){.rp, .rp *{\n          cursor: none !important;\n        }\n.rp .cursor{\n          display: block;\n        }}\n.rp .rw{\n        user-select: none;\n        cursor: grab;\n      }\n.rp .rw.dg{\n        transition: none;\n        position: relative;\n        z-index: 30;\n        background: var(--sf);\n        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);\n      }\n.rp .rv{\n        opacity: 0;\n        transform: translateY(24px);\n        transition:\n          opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),\n          transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);\n        transition-delay: var(--d, 0ms);\n      }\n.rp .rv.in{\n        opacity: 1;\n        transform: none;\n      }\n.rp #ld{\n        position: fixed;\n        inset: 0;\n        z-index: 120;\n        background: var(--ink);\n        color: #fff;\n        display: flex;\n        flex-direction: column;\n        align-items: center;\n        justify-content: center;\n        gap: 2rem;\n        border-radius: 0 0 2rem 2rem;\n        transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);\n      }\n.rp #ld.out{\n        transform: translateY(-100%);\n      }\n.rp #ld .c{\n        text-align: center;\n        display: grid;\n        gap: 1.25rem;\n        transition: 0.5s;\n      }\n.rp #ld.out .c{\n        opacity: 0;\n        transform: translateY(-12px);\n      }\n.rp #ld .b{\n        display: flex;\n        gap: 0.5rem;\n        justify-content: center;\n        align-items: center;\n        font-size: 1.875rem;\n        font-weight: 600;\n      }\n.rp #ld .b svg{\n        color: var(--a1);\n      }\n.rp #ld p{\n        font-size: 0.875rem;\n        color: rgba(255, 255, 255, 0.55);\n        max-width: 24ch;\n        margin: auto;\n      }\n.rp .pg{\n        width: min(22rem, 72vw);\n        display: grid;\n        gap: 0.75rem;\n      }\n.rp .tr{\n        height: 1px;\n        background: rgba(255, 255, 255, 0.15);\n      }\n.rp .tr i{\n        display: block;\n        height: 100%;\n        background: var(--a1);\n        width: 0;\n        transition: width 0.1s;\n      }\n.rp .pg div:last-child{\n        display: flex;\n        justify-content: space-between;\n        font-size: 0.75rem;\n        font-weight: 500;\n        text-transform: uppercase;\n        letter-spacing: 0.05em;\n        color: rgba(255, 255, 255, 0.45);\n      }\n.rp .pg b{\n        font-weight: 500;\n        color: rgba(255, 255, 255, 0.8);\n        font-variant-numeric: tabular-nums;\n      }\n.rp header{\n        position: absolute;\n        inset-inline: 0;\n        top: 0;\n        z-index: 50;\n      }\n.rp header .shell{\n        display: flex;\n        justify-content: space-between;\n        align-items: center;\n        gap: 1.5rem;\n        padding-block: 1.5rem;\n      }\n.rp .br{\n        display: flex;\n        align-items: center;\n        gap: 0.5rem;\n        font-size: 1.125rem;\n        font-weight: 600;\n        transition: transform 0.35s;\n      }\n.rp .br:hover{\n        transform: scale(1.04);\n      }\n.rp .br svg{\n        color: var(--ac);\n        font-size: 1.25rem;\n      }\n.rp nav ul{\n        display: none;\n        gap: 2rem;\n        font-size: 0.875rem;\n        font-weight: 500;\n      }\n@media (min-width: 1024px){.rp nav ul{\n          display: flex;\n        }}\n.rp nav a{\n        display: inline-block;\n        opacity: 0.8;\n        transition: 0.3s;\n      }\n.rp nav a:hover{\n        opacity: 1;\n        transform: translateY(-2px);\n      }\n.rp .rt{\n        display: flex;\n        gap: 0.75rem;\n        align-items: center;\n      }\n.rp .chip, .rp .mb{\n        border: 1px solid rgba(230, 229, 226, 0.8);\n        background: rgba(255, 255, 255, 0.4);\n        backdrop-filter: blur(4px);\n        border-radius: 0.875rem;\n        font-size: 0.75rem;\n      }\n.rp .chip{\n        display: none;\n        gap: 0.75rem;\n        padding: 0.5rem 0.75rem;\n        color: rgba(var(--t), 0.7);\n      }\n@media (min-width: 768px){.rp .chip{\n          display: flex;\n        }}\n.rp .chip b{\n        font-weight: 500;\n        color: var(--fg);\n        min-width: 3.5rem;\n        font-variant-numeric: tabular-nums;\n      }\n.rp .chip em{\n        font-style: normal;\n        color: rgba(var(--t), 0.45);\n      }\n.rp .mb{\n        display: flex;\n        gap: 0.5rem;\n        align-items: center;\n        padding: 0.5rem 1rem;\n        font-weight: 500;\n        text-transform: uppercase;\n        letter-spacing: 0.05em;\n      }\n.rp .mb:hover{\n        background: rgba(255, 255, 255, 0.7);\n      }\n.rp .hero{\n        position: relative;\n        isolation: isolate;\n        overflow: hidden;\n        border-radius: 0 0 2rem 2rem;\n        background: #e6e6e6;\n      }\n.rp .bg, .rp .hero canvas{\n        position: absolute;\n        inset: 0;\n        width: 100%;\n        height: 100%;\n      }\n.rp .bg{\n        background:\n          radial-gradient(60% 70% at 25% 30%, #ffffff, transparent),\n          radial-gradient(50% 60% at 80% 70%, #cfe2f7, transparent),\n          linear-gradient(135deg, #f8fafc, #e6e6e6);\n      }\n.rp .hero canvas{\n        pointer-events: none;\n      }\n.rp .vg{\n        position: absolute;\n        inset: 0;\n        z-index: 1;\n        pointer-events: none;\n        background: linear-gradient(\n          rgba(255, 255, 255, 0.35),\n          transparent,\n          rgba(255, 255, 255, 0.35)\n        );\n      }\n.rp .wm{\n        position: absolute;\n        inset-inline: 0;\n        bottom: 7rem;\n        z-index: 1;\n        text-align: center;\n        font-weight: 700;\n        line-height: 1;\n        font-size: 13rem;\n        color: rgba(255, 255, 255, 0.4);\n        pointer-events: none;\n        user-select: none;\n      }\n.rp .hg{\n        position: relative;\n        z-index: 20;\n        display: flex;\n        flex-direction: column;\n        gap: 2rem;\n        padding-block: 7rem 5rem;\n      }\n@media (min-width: 1024px){.rp .hg{\n          display: grid;\n          grid-template-columns: repeat(12, 1fr);\n          gap: 2.5rem;\n          min-height: 100lvh;\n          padding-block: 9rem 7rem;\n        }\n.rp .hl{\n          grid-column: span 7;\n        }\n.rp .hr{\n          grid-column: span 5;\n          align-items: flex-end !important;\n        }}\n.rp .hl, .rp .hr{\n        display: flex;\n        flex-direction: column;\n        gap: 1.75rem;\n      }\n.rp .hr{\n        align-items: flex-start;\n        gap: 2rem;\n      }\n.rp .ey{\n        display: inline-flex;\n        align-items: center;\n        gap: 0.5rem;\n        font-size: 0.875rem;\n        font-weight: 500;\n        color: rgba(var(--t), 0.7);\n      }\n.rp .ey:before{\n        content: \"\";\n        width: 0.375rem;\n        height: 0.375rem;\n        border-radius: 9px;\n        background: rgba(var(--t), 0.5);\n      }\n.rp .ey.l{\n        color: rgba(255, 255, 255, 0.7);\n      }\n.rp .ey.l:before{\n        background: rgba(255, 255, 255, 0.6);\n      }\n.rp .ey.bd{\n        border: 1px solid var(--line);\n        border-radius: 9999px;\n        padding: 0.375rem 1rem;\n      }\n.rp h1, .rp h2{\n        font-weight: 600;\n        letter-spacing: -0.02em;\n      }\n.rp h1{\n        font-size: 2.25rem;\n        line-height: 0.98;\n        max-width: 18ch;\n      }\n@media (min-width: 640px){.rp h1{\n          font-size: 3rem;\n        }}\n@media (min-width: 768px){.rp h1{\n          font-size: 3.75rem;\n        }}\n.rp h1 span{\n        display: block;\n        overflow: hidden;\n        padding-bottom: 0.08em;\n      }\n.rp h1 i{\n        display: block;\n        font-style: normal;\n        transform: translateY(105%);\n        transition: transform 0.9s cubic-bezier(0.215, 0.61, 0.355, 1);\n        transition-delay: var(--d);\n      }\n.rp .in h1 i, .rp h1.in i{\n        transform: none;\n      }\n.rp .tw{\n        font-size: 1.3rem;\n        font-weight: 700;\n        color: var(--ac);\n        min-height: 2rem;\n      }\n.rp .cur{\n        display: inline-block;\n        width: 3px;\n        height: 1.2em;\n        background: var(--ac);\n        margin-left: 2px;\n        vertical-align: text-bottom;\n        animation: bl 0.8s infinite;\n      }\n@keyframes bl {\n        50% {\n          opacity: 0;\n        }\n      }\n.rp .tilt{\n        max-width: 36rem;\n        background: #fff;\n        border-radius: 1.25rem;\n        padding: 1.5rem;\n        box-shadow:\n          0 10px 30px rgba(0, 0, 0, 0.1),\n          0 0 0 1px var(--line);\n        transition: transform 0.3s ease;\n        transform-style: preserve-3d;\n      }\n.rp .tilt h3{\n        color: var(--ac);\n        font-size: 1.25rem;\n        margin-bottom: 0.75rem;\n      }\n.rp .tilt p{\n        font-size: 0.95rem;\n        line-height: 1.6;\n        color: rgba(var(--t), 0.75);\n        margin-bottom: 0.75rem;\n      }\n.rp .tilt p:last-child{\n        margin: 0;\n      }\n.rp .rate{\n        display: flex;\n        align-items: center;\n        gap: 0.75rem;\n        font-size: 0.875rem;\n        font-weight: 500;\n        color: rgba(var(--t), 0.7);\n      }\n.rp .rate span{\n        display: flex;\n        color: var(--ac);\n        font-size: 1rem;\n      }\n.rp .cta{\n        display: flex;\n        flex-wrap: wrap;\n        gap: 0.75rem;\n      }\n.rp .pill{\n        display: inline-flex;\n        align-items: center;\n        gap: 0.75rem;\n        border-radius: 9999px;\n        font-size: 0.875rem;\n        font-weight: 500;\n        padding: 0.375rem 0.375rem 0.375rem 1.5rem;\n        transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);\n      }\n.rp .pill:hover{\n        transform: scale(1.04);\n      }\n.rp .pill.np{\n        padding: 0.875rem 1.75rem;\n      }\n.rp .pill.dark{\n        background: var(--ink);\n        color: #fff;\n      }\n.rp .pill.light{\n        background: var(--sf);\n        color: var(--fg);\n      }\n.rp .pill.out{\n        border: 1px solid var(--line);\n        color: var(--fg);\n      }\n.rp .pill u{\n        width: 2.25rem;\n        height: 2.25rem;\n        border-radius: 9999px;\n        display: grid;\n        place-items: center;\n        font-size: 1rem;\n        background: var(--ink);\n        color: #fff;\n      }\n.rp .pill.dark u{\n        background: #fff;\n        color: var(--ink);\n      }\n.rp .hc{\n        width: 100%;\n        max-width: 24rem;\n        border-radius: 1.25rem;\n        background: rgba(255, 255, 255, 0.7);\n        padding: 0.5rem;\n        box-shadow: 0 0 0 1px rgba(230, 229, 226, 0.7);\n        backdrop-filter: blur(12px);\n      }\n@media (min-width: 1024px){.rp .hc, .rp .pt{\n          width: 19rem;\n        }}\n.rp .hc > div{\n        display: flex;\n        gap: 0.5rem;\n        cursor: pointer;\n      }\n.rp .hc .t{\n        aspect-ratio: 1;\n        width: 6rem;\n        display: grid;\n        place-items: center;\n        border-radius: 0.875rem;\n        background: var(--ink);\n        font-size: 1.875rem;\n        color: var(--a1);\n      }\n.rp .hc .p{\n        flex: 1;\n        border-radius: 0.875rem;\n        background: rgba(248, 250, 252, 0.7);\n        padding: 0.75rem;\n        display: flex;\n        flex-direction: column;\n        justify-content: space-between;\n        gap: 0.5rem;\n      }\n.rp .sl{\n        min-height: 3.25rem;\n        transition: 0.3s;\n      }\n.rp .sl small{\n        display: block;\n        font-size: 0.65rem;\n        font-weight: 500;\n        text-transform: uppercase;\n        letter-spacing: 0.05em;\n        color: rgba(var(--t), 0.45);\n      }\n.rp .sl span{\n        font-size: 0.875rem;\n        font-weight: 500;\n        line-height: 1.35;\n        display: block;\n        max-width: 8rem;\n      }\n.rp .sl.sw{\n        opacity: 0;\n        transform: translateY(-14px);\n      }\n.rp .ft{\n        display: flex;\n        justify-content: space-between;\n        align-items: center;\n      }\n.rp .dt{\n        display: flex;\n        gap: 0.25rem;\n      }\n.rp .dt i{\n        height: 0.25rem;\n        width: 0.375rem;\n        border-radius: 9px;\n        background: rgba(var(--t), 0.2);\n        transition: 0.3s;\n      }\n.rp .dt i.a{\n        width: 1rem;\n        background: rgba(var(--t), 0.7);\n      }\n.rp .ar{\n        width: 1.75rem;\n        height: 1.75rem;\n        border-radius: 9px;\n        display: grid;\n        place-items: center;\n        background: #fff;\n        color: rgba(var(--t), 0.7);\n        box-shadow: 0 0 0 1px var(--line);\n      }\n.rp .ar:hover{\n        color: var(--fg);\n      }\n.rp .pt{\n        width: 100%;\n        max-width: 24rem;\n      }\n.rp .pt p{\n        font-size: 0.75rem;\n        font-weight: 500;\n        color: rgba(var(--t), 0.45);\n        margin-bottom: 0.75rem;\n      }\n@media (min-width: 1024px){.rp .pt p{\n          text-align: right;\n        }}\n.rp .pt ul{\n        display: grid;\n        grid-template-columns: repeat(4, 1fr);\n        gap: 0.75rem 1rem;\n      }\n.rp .pt li{\n        display: flex;\n        gap: 0.375rem;\n        align-items: center;\n        font-size: 0.75rem;\n        color: rgba(var(--t), 0.7);\n        opacity: 0.8;\n        transition: 0.3s;\n      }\n.rp .pt li:hover{\n        opacity: 1;\n        transform: translateY(-2px);\n      }\n.rp .pt li:before{\n        content: \"\";\n        width: 0.5rem;\n        height: 0.5rem;\n        border: 1.5px solid rgba(var(--t), 0.4);\n        border-radius: 9px;\n      }\n.rp .sb{\n        position: relative;\n        z-index: 20;\n      }\n.rp .sb .shell{\n        display: flex;\n        justify-content: space-between;\n        gap: 0.75rem;\n        border-top: 1px solid rgba(var(--t), 0.1);\n        padding-block: 1.25rem;\n        font-size: 0.75rem;\n        font-weight: 500;\n        text-transform: uppercase;\n        letter-spacing: 0.025em;\n        color: rgba(var(--t), 0.6);\n      }\n.rp .sb span:nth-child(2){\n        display: none;\n      }\n@media (min-width: 640px){.rp .sb span:nth-child(2){\n          display: block;\n        }}\n.rp .ab .shell{\n        display: grid;\n        gap: 3rem;\n        align-items: center;\n        padding-block: 5rem;\n      }\n@media (min-width: 1024px){.rp .ab .shell{\n          grid-template-columns: 1fr 1fr;\n          padding-block: 7rem;\n        }}\n.rp .gl{\n        position: relative;\n        min-height: 14rem;\n      }\n@media (min-width: 1024px){.rp .gl{\n          min-height: 20rem;\n        }}\n.rp .gl > svg{\n        position: absolute;\n        left: -1rem;\n        top: 50%;\n        transform: translateY(-50%);\n        font-size: 12rem;\n        color: rgba(var(--t), 0.1);\n        stroke-width: 1.4;\n      }\n@media (min-width: 640px){.rp .gl > svg{\n          font-size: 16rem;\n        }}\n.rp .gl .n{\n        position: absolute;\n        left: 0;\n        bottom: 0;\n        display: flex;\n        gap: 0.75rem;\n        align-items: center;\n        font-size: 0.875rem;\n        color: rgba(var(--t), 0.7);\n      }\n.rp .gl .n span{\n        max-width: 14rem;\n      }\n.rp .gl .n svg{\n        font-size: 1.5rem;\n        color: var(--fg);\n      }\n.rp .ab h2{\n        font-size: 1.5rem;\n        font-weight: 500;\n        line-height: 1.35;\n        letter-spacing: -0.01em;\n      }\n@media (min-width: 640px){.rp .ab h2{\n          font-size: 1.875rem;\n        }}\n.rp .ab h2 em{\n        font-style: normal;\n        color: #8d8d8d;\n      }\n.rp .ab h2 b{\n        display: inline-block;\n        font-weight: inherit;\n        opacity: 0;\n        transform: translateY(24px);\n        transition: 0.7s cubic-bezier(0.165, 0.84, 0.44, 1);\n        transition-delay: var(--d);\n      }\n.rp .in b{\n        opacity: 1 !important;\n        transform: none !important;\n      }\n.rp .ab .r{\n        display: flex;\n        flex-direction: column;\n        gap: 2.5rem;\n      }\n.rp .ab .f{\n        display: flex;\n        flex-wrap: wrap;\n        align-items: flex-end;\n        justify-content: space-between;\n        gap: 1.5rem;\n        border-top: 1px solid var(--line);\n        padding-top: 1.5rem;\n      }\n.rp .ab .f small{\n        display: block;\n        font-size: 0.875rem;\n        color: rgba(var(--t), 0.45);\n        margin-bottom: 0.5rem;\n      }\n.rp .so{\n        display: flex;\n        gap: 0.5rem;\n      }\n.rp .so a{\n        width: 2.25rem;\n        height: 2.25rem;\n        border-radius: 9999px;\n        display: grid;\n        place-items: center;\n        font-size: 0.75rem;\n        font-weight: 600;\n        background: var(--sf);\n        color: rgba(var(--t), 0.7);\n        transition: 0.3s;\n      }\n.rp .so a:first-child{\n        background: var(--ac);\n        color: #fff;\n      }\n.rp .so a:hover{\n        transform: scale(1.18);\n      }\n.rp .cb ul{\n        display: flex;\n        flex-direction: column;\n        gap: 0.75rem;\n        padding: 2.5rem 1.25rem;\n      }\n@media (min-width: 640px){.rp .cb ul{\n          flex-direction: row;\n          gap: 1rem;\n          padding-inline: 2rem;\n        }}\n.rp .cb li{\n        flex: 1;\n      }\n.rp .cb li > div{\n        display: grid;\n        place-items: center;\n        height: 6rem;\n        border-radius: 9999px;\n        font-size: 1.875rem;\n        font-weight: 500;\n        transition: transform 0.3s;\n      }\n.rp .cb li > div:hover{\n        transform: scale(1.03);\n      }\n@media (min-width: 640px){.rp .cb li > div{\n          height: 10rem;\n          font-size: 2.25rem;\n        }}\n.rp .cb svg{\n        font-size: 2.25rem;\n      }\n.rp .v1{\n        background: var(--sf);\n      }\n.rp .v2{\n        background: linear-gradient(135deg, #0066cc, #004a99);\n        color: #fff;\n      }\n.rp .v3{\n        background: var(--ink);\n        color: #fff;\n      }\n.rp .v4{\n        background: rgba(248, 250, 252, 0.6);\n        color: rgba(var(--t), 0.35);\n      }\n.rp .pf .shell{\n        padding-block: 2.5rem 5rem;\n      }\n.rp .cen{\n        text-align: center;\n      }\n.rp .pf h2, .rp .sv h2, .rp .st h2{\n        font-size: 2.25rem;\n      }\n@media (min-width: 640px){.rp .pf h2, .rp .sv h2{\n          font-size: 3rem;\n        }}\n.rp .pf h2{\n        margin: 1.25rem 0 3rem;\n      }\n.rp .cds{\n        display: grid;\n        gap: 1.5rem;\n      }\n@media (min-width: 768px){.rp .cds{\n          grid-template-columns: 1fr 1fr;\n        }}\n.rp .cd{\n        display: block;\n        position: relative;\n        min-height: 22rem;\n        overflow: hidden;\n        border-radius: 2rem;\n        background: var(--ink);\n        padding: 1.5rem;\n        color: #fff;\n        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);\n        transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);\n      }\n.rp .cd:hover{\n        transform: translateY(-8px) scale(1.012);\n      }\n@media (min-width: 640px){.rp .cd{\n          min-height: 26rem;\n          padding: 2rem;\n        }}\n.rp .cd .m{\n        display: flex;\n        justify-content: space-between;\n        font-size: 0.75rem;\n        text-transform: uppercase;\n        letter-spacing: 0.025em;\n        color: rgba(255, 255, 255, 0.45);\n      }\n.rp .cd .m u{\n        width: 2.75rem;\n        height: 2.75rem;\n        border-radius: 9999px;\n        display: grid;\n        place-items: center;\n        background: rgba(255, 255, 255, 0.1);\n        color: #fff;\n        font-size: 1rem;\n        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);\n        transition: 0.3s;\n      }\n.rp .cd:hover .m u{\n        transform: rotate(45deg) scale(1.08);\n      }\n.rp .cd .w{\n        position: absolute;\n        inset: 0;\n        display: grid;\n        place-items: center;\n        pointer-events: none;\n        font-size: 4.5rem;\n        color: rgba(255, 255, 255, 0.9);\n      }\n.rp .cd .bt{\n        position: absolute;\n        inset-inline: 1.5rem;\n        bottom: 1.5rem;\n      }\n@media (min-width: 640px){.rp .cd .bt{\n          inset-inline: 2rem;\n          bottom: 2rem;\n        }}\n.rp .cd h3{\n        font-size: 1.5rem;\n        font-weight: 500;\n        letter-spacing: -0.01em;\n      }\n@media (min-width: 640px){.rp .cd h3{\n          font-size: 1.875rem;\n        }}\n.rp .cd p{\n        margin-top: 0.5rem;\n        max-width: 28rem;\n        font-size: 0.875rem;\n        color: rgba(255, 255, 255, 0.55);\n      }\n.rp .cd .tg{\n        margin-top: 1.25rem;\n        display: flex;\n        flex-wrap: wrap;\n        gap: 0.5rem;\n      }\n.rp .cd .tg span{\n        border: 1px solid rgba(255, 255, 255, 0.25);\n        border-radius: 9999px;\n        padding: 0.5rem 1rem;\n        font-size: 0.875rem;\n      }\n.rp .sv .shell{\n        padding-block: 5rem;\n      }\n@media (min-width: 1024px){.rp .sv .shell{\n          padding-block: 7rem;\n        }}\n.rp .sv h2{\n        margin: 1.25rem 0 3rem;\n        max-width: 16ch;\n      }\n.rp .rw{\n        display: flex;\n        align-items: center;\n        gap: 1rem;\n        border-radius: 1.25rem;\n        padding: 1.5rem 1.5rem;\n        transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);\n      }\n@media (min-width: 640px){.rp .rw{\n          gap: 1.5rem;\n          padding-block: 2rem;\n        }}\n.rp .rw:hover{\n        background: var(--sf);\n        padding-left: 2rem;\n        padding-right: 1.25rem;\n      }\n.rp .sv li{\n        border-top: 1px solid var(--line);\n      }\n.rp .sv li:first-child{\n        border: 0;\n      }\n.rp .rw > span{\n        width: 1.75rem;\n        font-size: 0.875rem;\n        font-weight: 500;\n        color: rgba(var(--t), 0.4);\n      }\n.rp .rw h3{\n        flex: 1;\n        font-size: 1.5rem;\n        font-weight: 500;\n        letter-spacing: -0.01em;\n      }\n.rp .rw h3 small{\n        display: block;\n        margin-top: 0.25rem;\n        font-size: 0.8rem;\n        font-weight: 400;\n        color: rgba(var(--t), 0.5);\n        letter-spacing: 0;\n      }\n@media (min-width: 640px){.rp .rw h3{\n          font-size: 1.875rem;\n        }}\n@media (min-width: 768px){.rp .rw h3{\n          font-size: 2.25rem;\n        }}\n.rp .rw p{\n        display: none;\n        max-width: 20rem;\n        font-size: 0.875rem;\n        color: rgba(var(--t), 0.55);\n      }\n@media (min-width: 1024px){.rp .rw p{\n          display: block;\n        }}\n.rp .rw u{\n        width: 2.5rem;\n        height: 2.5rem;\n        border-radius: 9999px;\n        display: grid;\n        place-items: center;\n        background: var(--ink);\n        color: #fff;\n        transition: 0.3s;\n      }\n.rp .rw:hover u{\n        transform: translateX(5px);\n      }\n.rp .st .shell{\n        padding-bottom: 5rem;\n      }\n.rp .pn{\n        border-radius: 2rem;\n        background: var(--ink);\n        padding: 3rem 1.5rem;\n        color: #fff;\n      }\n@media (min-width: 640px){.rp .pn{\n          padding: 4rem 2rem;\n        }}\n@media (min-width: 768px){.rp .pn{\n          padding-inline: 4rem;\n        }}\n.rp .pn h2{\n        margin-top: 1rem;\n        max-width: 20ch;\n        font-size: 1.875rem;\n        font-weight: 500;\n        letter-spacing: -0.01em;\n      }\n.rp .sg{\n        margin-top: 3.5rem;\n        display: grid;\n        grid-template-columns: 1fr 1fr;\n        gap: 3rem 2rem;\n      }\n@media (min-width: 1024px){.rp .sg{\n          grid-template-columns: repeat(4, 1fr);\n        }}\n.rp .sg b{\n        font-size: 3rem;\n        font-weight: 600;\n        letter-spacing: -0.02em;\n      }\n@media (min-width: 640px){.rp .sg b{\n          font-size: 3.75rem;\n        }}\n.rp .sg p{\n        margin-top: 0.75rem;\n        font-size: 0.875rem;\n        color: rgba(255, 255, 255, 0.55);\n      }\n.rp .cn .shell{\n        padding-block: 5rem 6rem;\n        text-align: center;\n      }\n.rp .cn h2{\n        font-size: 2.25rem;\n        margin: 1.25rem 0 1rem;\n      }\n@media (min-width: 640px){.rp .cn h2{\n          font-size: 3rem;\n        }}\n.rp .cn p{\n        font-size: 1rem;\n        color: rgba(var(--t), 0.6);\n      }\n.rp .sc{\n        display: flex;\n        flex-wrap: wrap;\n        justify-content: center;\n        gap: 2rem;\n        padding: 3rem 0 1rem;\n      }\n.rp .cn{\n        background: var(--sf);\n        overflow: hidden;\n      }\n.rp.dark .cn{\n        background: #333;\n      }\n.rp .si{\n        display: grid;\n        place-items: center;\n        padding: 1rem;\n        font-size: 2.5rem;\n        color: var(--fg);\n        transition: color 0.4s;\n      }\n@media (max-width: 640px){.rp .si{\n          font-size: 2.25rem;\n        }}\n.rp .si.bh:hover{\n        color: var(--ac);\n        animation-play-state: paused;\n      }\n.rp .si.yh:hover{\n        color: #e6c800;\n        animation-play-state: paused;\n      }\n.rp.dark .si.yh:hover{\n        color: #fffb00;\n      }\n.rp .z1{\n        animation: zz1 8s infinite alternate;\n      }\n.rp .z2{\n        animation: zz2 7s infinite alternate-reverse;\n      }\n.rp .z3{\n        animation: zz3 9s infinite alternate;\n      }\n.rp .z4{\n        animation: zz4 6s infinite alternate-reverse;\n      }\n.rp .z5{\n        animation: zz1 7.5s infinite alternate;\n      }\n@keyframes zz1 {\n        0%,\n        100% {\n          transform: translate(0, 0) rotate(0);\n        }\n        25% {\n          transform: translate(20px, -20px) rotate(5deg);\n        }\n        50% {\n          transform: translate(-20px, 20px) rotate(-5deg);\n        }\n        75% {\n          transform: translate(20px, 20px) rotate(5deg);\n        }\n      }\n@keyframes zz2 {\n        0%,\n        100% {\n          transform: translate(0, 0) rotate(0);\n        }\n        25% {\n          transform: translate(-20px, -20px) rotate(-5deg);\n        }\n        50% {\n          transform: translate(20px, 20px) rotate(5deg);\n        }\n        75% {\n          transform: translate(-20px, 20px) rotate(-5deg);\n        }\n      }\n@keyframes zz3 {\n        0%,\n        100% {\n          transform: translate(0, 0) rotate(0);\n        }\n        25% {\n          transform: translate(15px, -15px) rotate(3deg);\n        }\n        50% {\n          transform: translate(-15px, 15px) rotate(-3deg);\n        }\n        75% {\n          transform: translate(15px, 15px) rotate(3deg);\n        }\n      }\n@keyframes zz4 {\n        0%,\n        100% {\n          transform: translate(0, 0) rotate(0);\n        }\n        25% {\n          transform: translate(-15px, -15px) rotate(-3deg);\n        }\n        50% {\n          transform: translate(15px, 15px) rotate(3deg);\n        }\n        75% {\n          transform: translate(-15px, 15px) rotate(-3deg);\n        }\n      }\n.rp footer{\n        position: relative;\n        overflow: hidden;\n        border-radius: 2rem 2rem 0 0;\n        background: var(--ink);\n        color: #fff;\n      }\n.rp footer .shell{\n        position: relative;\n        z-index: 10;\n        padding-block: 5rem 2.5rem;\n      }\n.rp .fc{\n        display: flex;\n        flex-direction: column;\n        gap: 2rem;\n        border-bottom: 1px solid rgba(255, 255, 255, 0.1);\n        padding-bottom: 4rem;\n      }\n@media (min-width: 1024px){.rp .fc{\n          flex-direction: row;\n          align-items: flex-end;\n          justify-content: space-between;\n        }}\n.rp footer h2{\n        max-width: 16ch;\n        font-size: 2.25rem;\n      }\n@media (min-width: 640px){.rp footer h2{\n          font-size: 3rem;\n        }}\n@media (min-width: 768px){.rp footer h2{\n          font-size: 3.75rem;\n        }}\n.rp .cl{\n        display: grid;\n        gap: 3rem;\n        padding-block: 4rem;\n      }\n@media (min-width: 768px){.rp .cl{\n          grid-template-columns: 1fr 1fr;\n        }}\n@media (min-width: 1024px){.rp .cl{\n          grid-template-columns: repeat(4, 1fr);\n        }}\n.rp .cl p{\n        max-width: 20rem;\n        font-size: 0.875rem;\n        color: rgba(255, 255, 255, 0.55);\n        margin-top: 0.75rem;\n      }\n.rp .cl h4{\n        font-size: 0.75rem;\n        font-weight: 400;\n        text-transform: uppercase;\n        letter-spacing: 0.025em;\n        color: rgba(255, 255, 255, 0.4);\n        margin-bottom: 1rem;\n      }\n.rp .cl li{\n        margin-bottom: 0.75rem;\n        font-size: 0.875rem;\n      }\n.rp .cl li a{\n        display: inline-block;\n        opacity: 0.65;\n        transition: 0.3s;\n      }\n.rp .cl li a:hover{\n        opacity: 1;\n        transform: translateX(4px);\n      }\n.rp .lg{\n        display: flex;\n        flex-direction: column;\n        align-items: center;\n        justify-content: space-between;\n        gap: 1rem;\n        border-top: 1px solid rgba(255, 255, 255, 0.1);\n        padding-top: 2rem;\n        font-size: 0.75rem;\n        color: rgba(255, 255, 255, 0.45);\n      }\n@media (min-width: 640px){.rp .lg{\n          flex-direction: row;\n        }}\n.rp .fw{\n        position: absolute;\n        inset-inline: 0;\n        bottom: -1.5rem;\n        text-align: center;\n        font-weight: 700;\n        line-height: 1;\n        font-size: 13rem;\n        color: rgba(255, 255, 255, 0.05);\n        pointer-events: none;\n        user-select: none;\n      }\n.rp #nm{\n        position: fixed;\n        inset: 0;\n        z-index: 115;\n        display: flex;\n        flex-direction: column;\n        background: var(--ink);\n        color: #fff;\n        opacity: 0;\n        pointer-events: none;\n        transition: opacity 0.35s;\n      }\n.rp #nm.o{\n        opacity: 1;\n        pointer-events: auto;\n      }\n.rp #nm .tb{\n        display: flex;\n        justify-content: space-between;\n        align-items: center;\n        padding-block: 1.5rem;\n      }\n.rp #nm .tb .br svg{\n        color: var(--a1);\n      }\n.rp .cx{\n        display: inline-flex;\n        gap: 0.5rem;\n        align-items: center;\n        border: 1px solid rgba(255, 255, 255, 0.15);\n        border-radius: 0.875rem;\n        padding: 0.5rem 1rem;\n        font-size: 0.75rem;\n        font-weight: 500;\n        text-transform: uppercase;\n        letter-spacing: 0.05em;\n        color: rgba(255, 255, 255, 0.7);\n      }\n.rp .cx:hover{\n        border-color: rgba(255, 255, 255, 0.4);\n        color: #fff;\n      }\n.rp #nm .nv{\n        flex: 1;\n        display: flex;\n        flex-direction: column;\n        justify-content: center;\n      }\n.rp #nm ul{\n        display: grid;\n        gap: 0.25rem;\n      }\n.rp #nm li button{\n        display: flex;\n        gap: 1rem;\n        align-items: baseline;\n        padding-block: 0.5rem;\n        font-size: 2.25rem;\n        font-weight: 600;\n        letter-spacing: -0.02em;\n        opacity: 0;\n        transform: translateY(1rem);\n        transition: all 0.5s ease-out;\n        transition-delay: calc(var(--i) * 45ms + 80ms);\n      }\n@media (min-width: 640px){.rp #nm li button{\n          font-size: 3.75rem;\n        }}\n.rp #nm.o li button{\n        opacity: 1;\n        transform: none;\n      }\n.rp #nm li small{\n        font-size: 1rem;\n        font-weight: 400;\n        color: rgba(255, 255, 255, 0.3);\n        transition: 0.3s;\n      }\n.rp #nm li span{\n        color: rgba(255, 255, 255, 0.7);\n        transition: 0.3s;\n      }\n.rp #nm li button:hover small{\n        color: var(--a1);\n      }\n.rp #nm li button:hover span{\n        color: #fff;\n      }\n.rp #nm .bb{\n        display: flex;\n        flex-direction: column;\n        gap: 0.75rem;\n        border-top: 1px solid rgba(255, 255, 255, 0.1);\n        padding-block: 1.5rem;\n        font-size: 0.75rem;\n        text-transform: uppercase;\n        letter-spacing: 0.025em;\n        color: rgba(255, 255, 255, 0.45);\n      }\n@media (min-width: 640px){.rp #nm .bb{\n          flex-direction: row;\n          justify-content: space-between;\n        }}\n.rp #nm .bb button{\n        color: rgba(255, 255, 255, 0.7);\n      }\n.rp #nm .bb button:hover{\n        text-decoration: underline;\n        color: #fff;\n      }\n.rp #md{\n        position: fixed;\n        inset: 0;\n        z-index: 110;\n        display: flex;\n        align-items: flex-end;\n        justify-content: center;\n        padding: 1rem;\n        background: rgba(var(--t), 0.3);\n        backdrop-filter: blur(16px);\n        opacity: 0;\n        pointer-events: none;\n        transition: opacity 0.3s;\n      }\n@media (min-width: 640px){.rp #md{\n          align-items: center;\n        }}\n.rp #md.o{\n        opacity: 1;\n        pointer-events: auto;\n      }\n.rp .pl{\n        position: relative;\n        width: 100%;\n        max-width: 32rem;\n        border-radius: 2rem;\n        background: #fff;\n        padding: 1.5rem;\n        box-shadow:\n          0 25px 50px rgba(0, 0, 0, 0.25),\n          0 0 0 1px var(--line);\n        transform: translateY(28px);\n        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);\n      }\n@media (min-width: 640px){.rp .pl{\n          padding: 2rem;\n        }}\n.rp #md.o .pl{\n        transform: none;\n      }\n.rp .pl .x{\n        position: absolute;\n        right: 1rem;\n        top: 1rem;\n        width: 2.25rem;\n        height: 2.25rem;\n        border-radius: 9999px;\n        display: grid;\n        place-items: center;\n        background: var(--sf);\n        color: rgba(var(--t), 0.6);\n      }\n.rp .pl .x:hover{\n        background: #e6e6e6;\n        color: var(--fg);\n      }\n.rp .pl .ey:before{\n        background: var(--ac);\n      }\n.rp .pl h2{\n        font-size: 1.5rem;\n        font-weight: 600;\n        letter-spacing: -0.01em;\n        margin: 0.375rem 0 1.5rem;\n      }\n@media (min-width: 640px){.rp .pl h2{\n          font-size: 1.875rem;\n        }}\n.rp .pl form{\n        display: flex;\n        flex-direction: column;\n        gap: 1rem;\n      }\n.rp .pl label{\n        font-size: 0.75rem;\n        font-weight: 500;\n        text-transform: uppercase;\n        letter-spacing: 0.025em;\n        color: rgba(var(--t), 0.5);\n        display: grid;\n        gap: 0.375rem;\n      }\n.rp .pl input, .rp .pl textarea{\n        width: 100%;\n        border: 1px solid var(--line);\n        background: rgba(248, 250, 252, 0.5);\n        border-radius: 0.875rem;\n        padding: 0.75rem 1rem;\n        font: inherit;\n        font-size: 0.875rem;\n        text-transform: none;\n        letter-spacing: 0;\n        color: var(--fg);\n        outline: none;\n        transition: 0.2s;\n        resize: none;\n      }\n.rp .pl input:focus, .rp .pl textarea:focus{\n        border-color: rgba(var(--t), 0.3);\n        background: #fff;\n      }\n.rp .pl .bm{\n        display: flex;\n        justify-content: space-between;\n        align-items: center;\n        gap: 1rem;\n        margin-top: 0.5rem;\n      }\n.rp .pl .bm small{\n        font-size: 0.75rem;\n        color: rgba(var(--t), 0.45);\n      }\n.rp .ok{\n        display: none;\n        flex-direction: column;\n        align-items: center;\n        text-align: center;\n        gap: 1rem;\n        padding-block: 2rem;\n      }\n.rp .ok.s{\n        display: flex;\n      }\n.rp .ok b{\n        width: 3.5rem;\n        height: 3.5rem;\n        border-radius: 9999px;\n        display: grid;\n        place-items: center;\n        background: var(--ink);\n        color: var(--a1);\n        font-size: 1.5rem;\n      }\n.rp .ok h2{\n        margin: 0;\n      }\n.rp .ok p{\n        max-width: 32ch;\n        font-size: 0.875rem;\n        color: rgba(var(--t), 0.6);\n      }\n.rp .skip{\n        position: fixed;\n        left: 1rem;\n        top: -4rem;\n        z-index: 130;\n        background: var(--ink);\n        color: #fff;\n        padding: 0.5rem 1rem;\n        border-radius: 0.875rem;\n        font-size: 0.875rem;\n      }\n.rp .skip:focus{\n        top: 1rem;\n      }\n.rp :focus-visible{\n        outline: 2px solid var(--ac);\n        outline-offset: 2px;\n      }\n@media (prefers-reduced-motion: reduce){.rp, .rp *{\n          animation: none !important;\n          transition: none !important;\n        }}\n\n.rp .cd .m{position:relative;z-index:2}\n.rp .cd .w.im img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}\n.rp .cd .w.im::after{content:\"\";position:absolute;inset:0;background:linear-gradient(rgba(10,15,30,.1) 20%,rgba(10,15,30,.92))}\n.rp .cd .bt{z-index:2}\n@media (min-width:640px){.rp .cd{min-height:28rem}}\n.rp{min-height:100%;position:relative}\n.rp #ld{position:absolute}\n.rp #nm,.rp #md{position:fixed}\n.rp .to3d{display:inline-flex;align-items:center;gap:.5rem;padding:.25rem .75rem .25rem .3rem;border:1px solid currentColor;border-radius:999px;font-size:.8125rem;font-weight:600;text-decoration:none;color:inherit;transition:background .25s}\n.rp .to3d i{width:2rem;height:1.1rem;border-radius:999px;background:linear-gradient(90deg,#F26A1F,#E5322D);position:relative;display:block}\n.rp .to3d i::after{content:\"\";position:absolute;top:2px;left:2px;width:calc(1.1rem - 4px);height:calc(1.1rem - 4px);border-radius:50%;background:#fff;transition:transform .3s}\n.rp .to3d:hover i::after{transform:translateX(.9rem)}\n.rp .to3d:hover{background:rgba(127,127,127,.15)}\n.rp .rt{gap:.5rem}\n.rp .cd,.rp .rw{cursor:pointer}\n.rp .rw u,.rp .cd .m u{background:linear-gradient(135deg,#F26A1F,#E5322D);color:#fff;box-shadow:0 4px 14px rgba(229,50,45,.35)}\n.rp .rw u svg,.rp .cd .m u svg,.rp .mb svg{width:1.1rem;height:1.1rem}\n.rp .rw.open u{transform:rotate(90deg);background:linear-gradient(135deg,#1f3a5c,#0066cc)}\n.rp .cd.open .m u{background:linear-gradient(135deg,#1f3a5c,#0066cc)}\n.rp .cn{overflow:visible;position:relative}\n.rp .sc{gap:1.25rem;padding:2.5rem 0 3rem;min-height:9rem}\n.rp .si{width:4.5rem;height:4.5rem;padding:0;border-radius:50%;background:var(--bg);box-shadow:0 6px 22px rgba(0,0,0,.14);font-size:1.9rem}\n.rp .si svg{width:1.9rem;height:1.9rem}\n.rp .z1,.rp .z2,.rp .z3,.rp .z4,.rp .z5{animation-name:bob}\n.rp .z2{animation-delay:-1s}.rp .z3{animation-delay:-2s}.rp .z4{animation-delay:-3s}.rp .z5{animation-delay:-4s}\n@keyframes bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-10px) rotate(4deg)}}\n.rp .rw.dg{cursor:default}\n.rp .rw.open u,.rp .cd.open .m u{transform:rotate(90deg)}\n.rp .star{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:1.5rem;padding:1.25rem 0 2rem;animation:starIn .35s ease both}\n.rp .cd .star{grid-template-columns:1fr;gap:1rem;padding:1rem 0}\n.rp .star div{min-width:0}\n.rp .star i{display:block;font-style:normal;font-weight:700;font-size:2.75rem;line-height:1;color:#F26A1F}\n.rp .star b{display:block;margin:.35rem 0 .5rem;font-size:.75rem;letter-spacing:.16em;text-transform:uppercase;opacity:.65}\n.rp .star p{font-size:.9375rem;line-height:1.55;overflow-wrap:anywhere}\n.rp .cd .bt .pill{margin-top:.5rem}\n@keyframes starIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}\n.rp .sg li{min-width:0}\n.rp .sg b{display:block;font-size:clamp(3.5rem,6.5vw,5.5rem);line-height:1;overflow-wrap:anywhere}\n.rp .rw > span{font-size:1.5rem;font-weight:700}\n.rp .mail-big{font-size:clamp(1.25rem,3vw,2rem);font-weight:600;word-break:break-all;display:block;margin:1rem 0 1.5rem}\n\n" };
+dcRegister('depot', document.getElementById('v-depot'), () => dcMount(document.getElementById('v-depot'), DepotC, T.depot, C.depot));
+dcRegister('rec', document.getElementById('v-rec'), () => dcMount(document.getElementById('v-rec'), RecruiterC, T.rec, C.rec));
+dcGo(location.hash === '#recruiter' ? 'rec' : 'depot');
+</script>
+</body>
+</html>
